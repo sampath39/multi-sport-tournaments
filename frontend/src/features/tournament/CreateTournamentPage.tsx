@@ -229,7 +229,7 @@ export function CreateTournamentPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
               { id: 'SWISS', label: 'Swiss System', desc: 'Dutch FIDE pairing, score grouping, no eliminations' },
-              { id: 'SINGLE_ELIMINATION', label: 'Single Elimination', desc: 'Standard knockout bracket, winner advances' },
+              { id: 'SINGLE_ELIMINATION', label: 'Knockout', desc: 'Direct elimination bracket — lose a match and you are eliminated, winner advances' },
               { id: 'ROUND_ROBIN', label: 'Round Robin', desc: 'Every competitor plays all other participants' },
             ].map((f) => (
               <label

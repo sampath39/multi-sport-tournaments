@@ -29,7 +29,7 @@ public class TournamentService {
     private final SportRepository sportRepository;
     private final PlayerRepository playerRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
-    private final com.tournament.pairing.chess.FideSwissChessEngine chessEngine;
+    private final com.tournament.tournament.format.TournamentFormatEngineFactory formatEngineFactory;
 
     // In-memory store for active tournament rounds and matches
     private final Map<UUID, List<Map<String, Object>>> tournamentFixtures = new ConcurrentHashMap<>();
@@ -290,208 +290,30 @@ public class TournamentService {
             }
         }
 
-        String sportCode = tournament.getSport() != null ? tournament.getSport().getCode() : "GENERAL";
-        List<Map<String, Object>> newRoundMatches = new ArrayList<>();
+        // Enforce maximum total rounds if configured
+        if (tournament.getTotalRounds() != null && nextRound > tournament.getTotalRounds()) {
+            throw new IllegalStateException("All " + tournament.getTotalRounds() + " scheduled rounds have already been generated.");
+        }
 
-        boolean isChessOrSwiss = "CHESS".equalsIgnoreCase(sportCode) || tournament.getFormatCode() == TournamentFormat.SWISS;
+        // Strict validation: Round 2 onwards requires all previous round matches to be finished
+        if (nextRound > 1) {
+            final int prevRound = nextRound - 1;
+            List<Map<String, Object>> prevMatches = existing.stream()
+                .filter(m -> ((Number) m.getOrDefault("roundNumber", 1)).intValue() == prevRound)
+                .toList();
 
-        if (isChessOrSwiss) {
-            // Build full Chess tournament state for every participant
-            Map<UUID, com.tournament.pairing.chess.ChessPlayer> chessPlayerMap = new LinkedHashMap<>();
-            for (int i = 0; i < participants.size(); i++) {
-                TournamentParticipantDto p = participants.get(i);
-                double rating = p.getRating() != null ? p.getRating().doubleValue() : 1500.0;
-                int seed = p.getSeed() != null ? p.getSeed() : (i + 1);
-                chessPlayerMap.put(p.getId(), com.tournament.pairing.chess.ChessPlayer.builder()
-                    .id(p.getId())
-                    .name(p.getDisplayName())
-                    .rating(rating)
-                    .seed(seed)
-                    .score(0.0)
-                    .wins(0)
-                    .draws(0)
-                    .losses(0)
-                    .gamesPlayed(0)
-                    .whiteGames(0)
-                    .blackGames(0)
-                    .colorHistory(new ArrayList<>())
-                    .opponents(new HashSet<>())
-                    .byeCount(0)
-                    .receivedBye(false)
-                    .build());
-            }
+            long pendingCount = prevMatches.stream()
+                .filter(m -> !"COMPLETED".equalsIgnoreCase((String) m.get("status")))
+                .count();
 
-            // Populate tournament history from ALL completed previous matches
-            for (Map<String, Object> m : existing) {
-                String status = (String) m.get("status");
-                if (!"COMPLETED".equalsIgnoreCase(status) && !"FINAL".equalsIgnoreCase(status)) {
-                    continue;
-                }
-
-                @SuppressWarnings("unchecked")
-                Map<String, Object> pA = (Map<String, Object>) m.get("participantA");
-                @SuppressWarnings("unchecked")
-                Map<String, Object> pB = (Map<String, Object>) m.get("participantB");
-
-                if (pA == null) continue;
-                String idAStr = (String) pA.get("id");
-                String idBStr = pB != null ? (String) pB.get("id") : null;
-
-                UUID idA = null;
-                try { idA = UUID.fromString(idAStr); } catch (Exception ignored) {}
-                UUID idB = null;
-                try { if (idBStr != null && !"BYE".equalsIgnoreCase(idBStr)) idB = UUID.fromString(idBStr); } catch (Exception ignored) {}
-
-                String resultType = (String) m.get("resultType");
-                String winner = (String) m.get("winner");
-                double scoreA = pA.get("score") != null ? ((Number) pA.get("score")).doubleValue() : 0.0;
-                double scoreB = (pB != null && pB.get("score") != null) ? ((Number) pB.get("score")).doubleValue() : 0.0;
-
-                // Check for Bye
-                if ("BYE".equalsIgnoreCase(resultType) || idB == null || "BYE".equalsIgnoreCase(idBStr)) {
-                    if (idA != null && chessPlayerMap.containsKey(idA)) {
-                        chessPlayerMap.get(idA).recordBye();
-                    }
-                    continue;
-                }
-
-                // Regular match
-                com.tournament.pairing.chess.ChessPlayer playerA = (idA != null) ? chessPlayerMap.get(idA) : null;
-                com.tournament.pairing.chess.ChessPlayer playerB = (idB != null) ? chessPlayerMap.get(idB) : null;
-
-                if (playerA != null && playerB != null) {
-                    double resA;
-                    double resB;
-                    if (scoreA > scoreB || (winner != null && winner.equals(playerA.getName()))) {
-                        resA = 1.0;
-                        resB = 0.0;
-                    } else if (scoreB > scoreA || (winner != null && winner.equals(playerB.getName()))) {
-                        resA = 0.0;
-                        resB = 1.0;
-                    } else {
-                        resA = 0.5;
-                        resB = 0.5;
-                    }
-
-                    // A is White, B is Black
-                    playerA.recordResult("W", resA, playerB.getId());
-                    playerB.recordResult("B", resB, playerA.getId());
-                }
-            }
-
-            // Run FIDE Swiss Chess Engine
-            List<com.tournament.pairing.chess.ChessPlayer> playerList = new ArrayList<>(chessPlayerMap.values());
-            List<com.tournament.pairing.chess.ChessPairing> pairings = chessEngine.generatePairings(playerList, nextRound);
-
-            for (com.tournament.pairing.chess.ChessPairing cp : pairings) {
-                Map<String, Object> match = new LinkedHashMap<>();
-                match.put("id", UUID.randomUUID().toString());
-                match.put("tournamentId", tournamentId.toString());
-                match.put("roundNumber", nextRound);
-                match.put("sportCode", sportCode);
-                match.put("pairingReason", cp.getPairingReason());
-
-                if (cp.isBye()) {
-                    match.put("courtName", "BYE");
-                    match.put("participantA", Map.of(
-                        "id", cp.getWhitePlayer().getId().toString(),
-                        "displayName", cp.getWhitePlayer().getName(),
-                        "score", 1
-                    ));
-                    match.put("participantB", Map.of(
-                        "id", "BYE",
-                        "displayName", "BYE",
-                        "score", 0
-                    ));
-                    match.put("sideA", "WHITE");
-                    match.put("sideB", "BYE");
-                    match.put("status", "COMPLETED");
-                    match.put("resultType", "BYE");
-                    match.put("winner", cp.getWhitePlayer().getName());
-                } else {
-                    match.put("courtName", "Board " + cp.getBoardNumber());
-                    match.put("participantA", Map.of(
-                        "id", cp.getWhitePlayer().getId().toString(),
-                        "displayName", cp.getWhitePlayer().getName(),
-                        "score", 0
-                    ));
-                    match.put("participantB", Map.of(
-                        "id", cp.getBlackPlayer().getId().toString(),
-                        "displayName", cp.getBlackPlayer().getName(),
-                        "score", 0
-                    ));
-                    match.put("sideA", "WHITE");
-                    match.put("sideB", "BLACK");
-                    match.put("status", "SCHEDULED");
-                }
-                newRoundMatches.add(match);
-            }
-        } else {
-            // General Knockout / Round Robin
-            List<TournamentParticipantDto> activeForRound = new ArrayList<>(participants);
-            if (tournament.getFormatCode() == TournamentFormat.SINGLE_ELIMINATION && nextRound > 1) {
-                final int prevRound = nextRound - 1;
-                List<String> winnerNames = existing.stream()
-                    .filter(m -> ((Number) m.getOrDefault("roundNumber", 0)).intValue() == prevRound)
-                    .map(m -> (String) m.get("winner"))
-                    .filter(Objects::nonNull)
-                    .toList();
-
-                if (!winnerNames.isEmpty()) {
-                    activeForRound = participants.stream()
-                        .filter(p -> winnerNames.contains(p.getDisplayName()))
-                        .toList();
-                }
-            }
-
-            for (int i = 0; i < activeForRound.size(); i += 2) {
-                if (i + 1 < activeForRound.size()) {
-                    TournamentParticipantDto pA = activeForRound.get(i);
-                    TournamentParticipantDto pB = activeForRound.get(i + 1);
-
-                    Map<String, Object> match = new LinkedHashMap<>();
-                    match.put("id", UUID.randomUUID().toString());
-                    match.put("tournamentId", tournamentId.toString());
-                    match.put("roundNumber", nextRound);
-                    match.put("courtName", "Court / Board " + ((i / 2) + 1));
-                    match.put("participantA", Map.of(
-                        "id", pA.getId().toString(),
-                        "displayName", pA.getDisplayName(),
-                        "score", 0
-                    ));
-                    match.put("participantB", Map.of(
-                        "id", pB.getId().toString(),
-                        "displayName", pB.getDisplayName(),
-                        "score", 0
-                    ));
-                    match.put("status", "SCHEDULED");
-                    match.put("sportCode", sportCode);
-                    newRoundMatches.add(match);
-                } else {
-                    TournamentParticipantDto pBye = activeForRound.get(i);
-                    Map<String, Object> byeMatch = new LinkedHashMap<>();
-                    byeMatch.put("id", UUID.randomUUID().toString());
-                    byeMatch.put("tournamentId", tournamentId.toString());
-                    byeMatch.put("roundNumber", nextRound);
-                    byeMatch.put("courtName", "BYE");
-                    byeMatch.put("participantA", Map.of(
-                        "id", pBye.getId().toString(),
-                        "displayName", pBye.getDisplayName(),
-                        "score", 1
-                    ));
-                    byeMatch.put("participantB", Map.of(
-                        "id", "BYE",
-                        "displayName", "BYE",
-                        "score", 0
-                    ));
-                    byeMatch.put("status", "COMPLETED");
-                    byeMatch.put("resultType", "BYE");
-                    byeMatch.put("winner", pBye.getDisplayName());
-                    byeMatch.put("sportCode", sportCode);
-                    newRoundMatches.add(byeMatch);
-                }
+            if (pendingCount > 0) {
+                throw new IllegalStateException("Cannot generate Round " + nextRound + " fixtures: " +
+                    "Round " + prevRound + " has " + pendingCount + " match(es) with pending scores. " +
+                    "Please submit all scores for Round " + prevRound + " before generating the next round.");
             }
         }
+        var engine = formatEngineFactory.getEngine(tournament.getFormatCode());
+        List<Map<String, Object>> newRoundMatches = engine.generateRound(tournament, participants, existing, nextRound);
 
         existing.addAll(newRoundMatches);
         tournamentFixtures.put(tournamentId, existing);
@@ -535,169 +357,35 @@ public class TournamentService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getStandings(UUID tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament not found: " + tournamentId));
         List<TournamentParticipantDto> participants = getParticipants(tournamentId);
         List<Map<String, Object>> fixtures = getFixtures(tournamentId);
 
-        Map<String, Map<String, Object>> stats = new LinkedHashMap<>();
-        Map<String, List<String>> opponentsMap = new HashMap<>();
-        Map<String, List<String>> defeatedMap = new HashMap<>();
-        Map<String, List<String>> drawnMap = new HashMap<>();
-
-        for (TournamentParticipantDto p : participants) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("participantId", p.getId().toString());
-            row.put("participantName", p.getDisplayName());
-            row.put("rating", p.getRating() != null ? p.getRating().doubleValue() : 1500.0);
-            row.put("played", 0);
-            row.put("won", 0);
-            row.put("drawn", 0);
-            row.put("lost", 0);
-            row.put("points", 0.0);
-            row.put("buchholz", 0.0);
-            row.put("sonnebornBerger", 0.0);
-            stats.put(p.getDisplayName(), row);
-
-            opponentsMap.put(p.getDisplayName(), new ArrayList<>());
-            defeatedMap.put(p.getDisplayName(), new ArrayList<>());
-            drawnMap.put(p.getDisplayName(), new ArrayList<>());
-        }
-
-        // Calculate points from completed fixtures
-        for (Map<String, Object> m : fixtures) {
-            String status = (String) m.get("status");
-            if (!"COMPLETED".equalsIgnoreCase(status) && !"FINAL".equalsIgnoreCase(status)) continue;
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> pA = (Map<String, Object>) m.get("participantA");
-            @SuppressWarnings("unchecked")
-            Map<String, Object> pB = (Map<String, Object>) m.get("participantB");
-
-            String nameA = pA != null ? (String) pA.get("displayName") : null;
-            String nameB = pB != null ? (String) pB.get("displayName") : null;
-
-            double scoreA = pA != null && pA.get("score") != null ? ((Number) pA.get("score")).doubleValue() : 0.0;
-            double scoreB = pB != null && pB.get("score") != null ? ((Number) pB.get("score")).doubleValue() : 0.0;
-            String resultType = (String) m.get("resultType");
-
-            if ("BYE".equalsIgnoreCase(resultType) || "BYE".equals(nameB)) {
-                if (nameA != null && stats.containsKey(nameA)) {
-                    Map<String, Object> sA = stats.get(nameA);
-                    sA.put("played", ((int) sA.get("played")) + 1);
-                    sA.put("won", ((int) sA.get("won")) + 1);
-                    sA.put("points", ((double) sA.get("points")) + 1.0);
-                }
-                continue;
-            }
-
-            if (nameA != null && stats.containsKey(nameA)) {
-                Map<String, Object> sA = stats.get(nameA);
-                sA.put("played", ((int) sA.get("played")) + 1);
-                if (nameB != null && !"BYE".equals(nameB)) opponentsMap.get(nameA).add(nameB);
-
-                if (scoreA > scoreB) {
-                    sA.put("won", ((int) sA.get("won")) + 1);
-                    sA.put("points", ((double) sA.get("points")) + 1.0);
-                    if (nameB != null) defeatedMap.get(nameA).add(nameB);
-                } else if (scoreA == scoreB) {
-                    sA.put("drawn", ((int) sA.get("drawn")) + 1);
-                    sA.put("points", ((double) sA.get("points")) + 0.5);
-                    if (nameB != null) drawnMap.get(nameA).add(nameB);
-                } else {
-                    sA.put("lost", ((int) sA.get("lost")) + 1);
-                }
-            }
-
-            if (nameB != null && stats.containsKey(nameB) && !"BYE".equals(nameB)) {
-                Map<String, Object> sB = stats.get(nameB);
-                sB.put("played", ((int) sB.get("played")) + 1);
-                if (nameA != null) opponentsMap.get(nameB).add(nameA);
-
-                if (scoreB > scoreA) {
-                    sB.put("won", ((int) sB.get("won")) + 1);
-                    sB.put("points", ((double) sB.get("points")) + 1.0);
-                    if (nameA != null) defeatedMap.get(nameB).add(nameA);
-                } else if (scoreB == scoreA) {
-                    sB.put("drawn", ((int) sB.get("drawn")) + 1);
-                    sB.put("points", ((double) sB.get("points")) + 0.5);
-                    if (nameA != null) drawnMap.get(nameB).add(nameA);
-                } else {
-                    sB.put("lost", ((int) sB.get("lost")) + 1);
-                }
-            }
-        }
-
-        // Calculate Buchholz and Sonneborn-Berger tiebreakers
-        for (Map.Entry<String, Map<String, Object>> entry : stats.entrySet()) {
-            String name = entry.getKey();
-            Map<String, Object> row = entry.getValue();
-
-            // Buchholz = sum of opponents' total points
-            double buchholz = 0.0;
-            List<String> opps = opponentsMap.getOrDefault(name, Collections.emptyList());
-            for (String opp : opps) {
-                if (stats.containsKey(opp)) {
-                    buchholz += (double) stats.get(opp).get("points");
-                }
-            }
-            row.put("buchholz", buchholz);
-
-            // Sonneborn-Berger = 1.0 * points of defeated opponents + 0.5 * points of drawn opponents
-            double sb = 0.0;
-            for (String defOpp : defeatedMap.getOrDefault(name, Collections.emptyList())) {
-                if (stats.containsKey(defOpp)) {
-                    sb += (double) stats.get(defOpp).get("points");
-                }
-            }
-            for (String drOpp : drawnMap.getOrDefault(name, Collections.emptyList())) {
-                if (stats.containsKey(drOpp)) {
-                    sb += 0.5 * (double) stats.get(drOpp).get("points");
-                }
-            }
-            row.put("sonnebornBerger", sb);
-        }
-
-        List<Map<String, Object>> list = new ArrayList<>(stats.values());
-        // Sort: Points desc, Buchholz desc, Sonneborn-Berger desc, Rating desc
-        list.sort((a, b) -> {
-            int cmp = Double.compare((double) b.get("points"), (double) a.get("points"));
-            if (cmp != 0) return cmp;
-            cmp = Double.compare((double) b.get("buchholz"), (double) a.get("buchholz"));
-            if (cmp != 0) return cmp;
-            cmp = Double.compare((double) b.get("sonnebornBerger"), (double) a.get("sonnebornBerger"));
-            if (cmp != 0) return cmp;
-            return Double.compare((double) b.getOrDefault("rating", 1500.0), (double) a.getOrDefault("rating", 1500.0));
-        });
-
-        for (int i = 0; i < list.size(); i++) {
-            list.get(i).put("rank", i + 1);
-        }
-
-        return list;
+        var engine = formatEngineFactory.getEngine(tournament.getFormatCode());
+        return engine.calculateStandings(tournament, participants, fixtures);
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getBracket(UUID tournamentId) {
-        Map<String, Object> bracket = new LinkedHashMap<>();
-        bracket.put("tournamentId", tournamentId);
-
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament not found: " + tournamentId));
+        List<TournamentParticipantDto> participants = getParticipants(tournamentId);
         List<Map<String, Object>> fixtures = getFixtures(tournamentId);
-        Map<Integer, List<Map<String, Object>>> byRound = new TreeMap<>();
-        for (Map<String, Object> m : fixtures) {
-            int r = ((Number) m.getOrDefault("roundNumber", 1)).intValue();
-            byRound.computeIfAbsent(r, k -> new ArrayList<>()).add(m);
-        }
 
-        List<Map<String, Object>> rounds = new ArrayList<>();
-        for (Map.Entry<Integer, List<Map<String, Object>>> entry : byRound.entrySet()) {
-            Map<String, Object> roundMap = new LinkedHashMap<>();
-            roundMap.put("roundNumber", entry.getKey());
-            roundMap.put("roundName", "Round " + entry.getKey());
-            roundMap.put("matches", entry.getValue());
-            rounds.add(roundMap);
-        }
+        var engine = formatEngineFactory.getEngine(tournament.getFormatCode());
+        return engine.getBracket(tournament, participants, fixtures);
+    }
 
-        bracket.put("rounds", rounds);
-        return bracket;
+    @Transactional(readOnly = true)
+    public boolean isTournamentComplete(UUID tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+            .orElseThrow(() -> new IllegalArgumentException("Tournament not found: " + tournamentId));
+        List<TournamentParticipantDto> participants = getParticipants(tournamentId);
+        List<Map<String, Object>> fixtures = getFixtures(tournamentId);
+
+        var engine = formatEngineFactory.getEngine(tournament.getFormatCode());
+        return engine.isTournamentComplete(tournament, participants, fixtures);
     }
 
     @Transactional

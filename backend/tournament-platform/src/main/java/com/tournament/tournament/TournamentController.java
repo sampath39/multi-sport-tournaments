@@ -107,6 +107,14 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.getBracket(id));
     }
 
+    @GetMapping("/{id}/complete-status")
+    public ResponseEntity<Map<String, Object>> getCompleteStatus(@PathVariable UUID id) {
+        return ResponseEntity.ok(Map.of(
+            "tournamentId", id,
+            "isComplete", tournamentService.isTournamentComplete(id)
+        ));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTournament(@PathVariable UUID id) {
         if (tournamentService.deleteTournament(id)) {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,7 +9,7 @@ import {
   AlertCircle, RefreshCw, Layers
 } from 'lucide-react'
 import { tournamentsApi, matchesApi } from '@/lib/api'
-import { getSportBadgeColor, getStatusColor, formatDate } from '@/lib/utils'
+import { getSportBadgeColor, getStatusColor, formatDate, getFormatLabel } from '@/lib/utils'
 import { Sport3DBadge } from '@/components/sports/Sport3DCard'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
@@ -76,6 +76,80 @@ export function TournamentDetailPage() {
     queryFn: () => tournamentsApi.getStandings(id!),
     enabled: !!id,
   })
+
+  // Group matches by round for separate box presentation
+  const roundsMap = useMemo(() => {
+    return matches.reduce((acc: Record<number, any[]>, m: any) => {
+      const r = m.roundNumber || 1
+      if (!acc[r]) acc[r] = []
+      acc[r].push(m)
+      return acc
+    }, {})
+  }, [matches])
+
+  const roundNumbers = useMemo(() => {
+    return Object.keys(roundsMap).map(Number).sort((a, b) => a - b)
+  }, [roundsMap])
+
+  const maxRound = roundNumbers.length > 0 ? Math.max(...roundNumbers) : 0
+  const latestRoundMatches = maxRound > 0 ? (roundsMap[maxRound] || []) : []
+  const hasPendingMatchesInLatestRound = latestRoundMatches.some((m: any) => m.status !== 'COMPLETED')
+  const pendingCountInLatestRound = latestRoundMatches.filter((m: any) => m.status !== 'COMPLETED').length
+  const nextRoundNumber = maxRound + 1
+
+  const getRoundTheme = (r: number) => {
+    const themes = [
+      {
+        borderTop: 'border-t-indigo-600',
+        badgeBg: 'bg-indigo-600',
+        badgeText: 'text-white',
+        borderBox: 'border-indigo-100',
+        accentBg: 'bg-indigo-50/30',
+        headerText: 'text-indigo-950',
+      },
+      {
+        borderTop: 'border-t-emerald-600',
+        badgeBg: 'bg-emerald-600',
+        badgeText: 'text-white',
+        borderBox: 'border-emerald-100',
+        accentBg: 'bg-emerald-50/30',
+        headerText: 'text-emerald-950',
+      },
+      {
+        borderTop: 'border-t-amber-500',
+        badgeBg: 'bg-amber-500',
+        badgeText: 'text-white',
+        borderBox: 'border-amber-100',
+        accentBg: 'bg-amber-50/30',
+        headerText: 'text-amber-950',
+      },
+      {
+        borderTop: 'border-t-purple-600',
+        badgeBg: 'bg-purple-600',
+        badgeText: 'text-white',
+        borderBox: 'border-purple-100',
+        accentBg: 'bg-purple-50/30',
+        headerText: 'text-purple-950',
+      },
+      {
+        borderTop: 'border-t-cyan-600',
+        badgeBg: 'bg-cyan-600',
+        badgeText: 'text-white',
+        borderBox: 'border-cyan-100',
+        accentBg: 'bg-cyan-50/30',
+        headerText: 'text-cyan-950',
+      },
+      {
+        borderTop: 'border-t-rose-500',
+        badgeBg: 'bg-rose-500',
+        badgeText: 'text-white',
+        borderBox: 'border-rose-100',
+        accentBg: 'bg-rose-50/30',
+        headerText: 'text-rose-950',
+      },
+    ]
+    return themes[(r - 1) % themes.length]
+  }
 
   // Mutation: Add Participant
   const addParticipantMutation = useMutation({
@@ -194,6 +268,7 @@ export function TournamentDetailPage() {
   const t = tournament
   const sportCode = t.sportCode || t.sport?.code || 'CHESS'
   const sportName = t.sportName || t.sport?.name || sportCode
+  const isKnockout = t.formatCode === 'SINGLE_ELIMINATION' || t.formatCode === 'KNOCKOUT'
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -223,7 +298,7 @@ export function TournamentDetailPage() {
                   {t.tournamentType || t.tier || 'CLUB'} TIER
                 </span>
                 <span className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                  {t.formatCode?.replace(/_/g, ' ') || 'SWISS'}
+                  {getFormatLabel(t.formatCode)}
                 </span>
               </div>
 
@@ -327,13 +402,23 @@ export function TournamentDetailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/60">
                   <div className="text-xs text-slate-500 font-semibold uppercase">Competition Format</div>
-                  <div className="text-base font-bold text-slate-900 mt-1">{t.formatCode?.replace(/_/g, ' ') || 'Swiss Pairing'}</div>
-                  <p className="text-xs text-slate-500 mt-1">Official round-by-round pairings with bye allocation.</p>
+                  <div className="text-base font-bold text-slate-900 mt-1">{getFormatLabel(t.formatCode)}</div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isKnockout
+                      ? 'Knockout bracket: loss eliminates competitor, winners advance to Championship Final.'
+                      : t.formatCode === 'ROUND_ROBIN'
+                      ? 'Round Robin: all-play-all schedule where every competitor plays all opponents.'
+                      : 'Swiss system pairing: score-group matching with Buchholz tiebreakers.'}
+                  </p>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/60">
                   <div className="text-xs text-slate-500 font-semibold uppercase">Tie-Break Hierarchy</div>
-                  <div className="text-base font-bold text-slate-900 mt-1">Buchholz & Direct Encounter</div>
-                  <p className="text-xs text-slate-500 mt-1">Strict, transparent, automated calculations.</p>
+                  <div className="text-base font-bold text-slate-900 mt-1">
+                    {isKnockout ? 'Direct Match Winner' : 'Buchholz & Sonneborn-Berger'}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isKnockout ? 'Knockout progression to Championship Final.' : 'Strict, transparent, automated calculations.'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -520,36 +605,86 @@ export function TournamentDetailPage() {
 
       {/* Matches & Rounds Tab */}
       {activeTab === 'matches' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-8">
+          {/* Header & Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Tournament Fixtures & Matches</h3>
-              <p className="text-xs text-slate-500">Record scores and advance winners round-by-round</p>
+              <h3 className="text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                <Layers className="h-5 w-5 text-primary" />
+                Tournament Fixtures & Rounds
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Record scores round-by-round with official FIDE Swiss pairing & score bracket progression
+              </p>
             </div>
+
             <div className="flex items-center gap-2">
               <button
                 onClick={() => refetchMatches()}
-                className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1 transition-colors"
+                className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
                 title="Refresh fixtures"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Refresh</span>
               </button>
-              <button
-                onClick={() => generateFixturesMutation.mutate()}
-                disabled={generateFixturesMutation.isPending}
-                className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm hover:bg-primary/95 transition-colors disabled:opacity-50"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Generate Round Fixtures
-              </button>
+
+              {matches.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (hasPendingMatchesInLatestRound) {
+                      toast.error(`Cannot generate Round ${nextRoundNumber} yet! Please submit all scores for Round ${maxRound} first.`)
+                      return
+                    }
+                    generateFixturesMutation.mutate()
+                  }}
+                  disabled={generateFixturesMutation.isPending || hasPendingMatchesInLatestRound}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all ${
+                    hasPendingMatchesInLatestRound
+                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                      : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
+                  }`}
+                  title={
+                    hasPendingMatchesInLatestRound
+                      ? `Submit all scores for Round ${maxRound} before generating Round ${nextRoundNumber}`
+                      : `Generate pairings for Round ${nextRoundNumber}`
+                  }
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {generateFixturesMutation.isPending ? (
+                    'Generating...'
+                  ) : hasPendingMatchesInLatestRound ? (
+                    `Complete R${maxRound} Scores to Unlock R${nextRoundNumber}`
+                  ) : (
+                    `Generate Round ${nextRoundNumber} Fixtures`
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
+          {/* Warning Banner if Previous Round Incomplete */}
+          {hasPendingMatchesInLatestRound && maxRound > 0 && (
+            <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-amber-900 text-xs flex items-start sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-200/60 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-4 h-4 text-amber-700" />
+                </div>
+                <div>
+                  <span className="font-bold text-amber-950">Round {maxRound} Score Submission Required: </span>
+                  <span>
+                    There {pendingCountInLatestRound === 1 ? 'is 1 match' : `are ${pendingCountInLatestRound} matches`} in Round {maxRound} awaiting score results.
+                    Round {nextRoundNumber} pairings will be unlocked once all Round {maxRound} scores are finalized.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {matches.length === 0 ? (
-            <div className="bg-white border border-slate-200/80 rounded-2xl text-center py-16 px-4 shadow-sm">
+            <div className="bg-white border border-slate-200/80 rounded-3xl text-center py-16 px-4 shadow-sm">
               <Layers className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <h4 className="font-bold text-slate-800 text-base mb-1">No Fixtures Generated Yet</h4>
-              <p className="text-slate-500 text-xs mb-4">
+              <p className="text-slate-500 text-xs mb-5">
                 {participants.length < 2
                   ? `You currently have ${participants.length} competitor registered. Add at least 2 competitors first.`
                   : `You have ${participants.length} competitors registered. Click below to generate official Round 1 pairings!`}
@@ -560,7 +695,7 @@ export function TournamentDetailPage() {
                     setShowAddParticipant(true)
                     setActiveTab('participants')
                   }}
-                  className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm"
+                  className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm"
                 >
                   + Add Competitors
                 </button>
@@ -568,99 +703,186 @@ export function TournamentDetailPage() {
                 <button
                   onClick={() => generateFixturesMutation.mutate()}
                   disabled={generateFixturesMutation.isPending}
-                  className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold shadow-sm"
+                  className="px-6 py-3 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary/95 transition-colors"
                 >
                   Generate Round 1 Fixtures
                 </button>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {matches.map((m: any) => {
-                const p1Name = m.participantA?.displayName || m.player1Name || 'TBD'
-                const p2Name = m.participantB?.displayName || m.player2Name || 'TBD'
-                const s1 = m.participantA?.score ?? m.scoreA ?? 0
-                const s2 = m.participantB?.score ?? m.scoreB ?? 0
-                const isCompleted = m.status === 'COMPLETED'
+            <div className="space-y-8">
+              {roundNumbers.map((r) => {
+                const roundMatches = roundsMap[r] || []
+                const theme = getRoundTheme(r)
+                const pendingRoundCount = roundMatches.filter((m: any) => m.status !== 'COMPLETED').length
+                const isRoundComplete = pendingRoundCount === 0
 
                 return (
                   <div
-                    key={m.id}
-                    className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-primary/40 transition-all shadow-sm group"
+                    key={r}
+                    className={`bg-white rounded-3xl border ${theme.borderBox} border-t-4 ${theme.borderTop} p-6 shadow-sm hover:shadow-md transition-shadow`}
                   >
-                    <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-primary">
-                          Round {m.roundNumber || 1} • {m.courtName || 'Court / Board 1'}
-                        </span>
-                        {m.pairingReason && (
-                          <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md font-medium">
-                            {m.pairingReason}
+                    {/* Round Header Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shadow-sm ${theme.badgeBg} ${theme.badgeText}`}>
+                          R{r}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-slate-900 text-lg tracking-tight">Round {r} Pairings</h4>
+                            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                              {roundMatches.length} {roundMatches.length === 1 ? 'board' : 'boards'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            {isRoundComplete ? 'All fixtures concluded and results verified' : `${pendingRoundCount} match score(s) remaining`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        {isRoundComplete ? (
+                          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Round Completed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
+                            <Clock className="w-3.5 h-3.5" />
+                            Scores Pending ({pendingRoundCount})
                           </span>
                         )}
                       </div>
-                      <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${getStatusColor(m.status)}`}>
-                        {m.status || 'SCHEDULED'}
-                      </span>
                     </div>
 
-                    <div className="space-y-2 bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {m.sideA && m.sideA !== 'NONE' && (
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                              m.sideA === 'WHITE' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-200 text-slate-800'
-                            }`}>
-                              {m.sideA === 'WHITE' ? 'WHITE ♔' : m.sideA}
-                            </span>
-                          )}
-                          <span className={`text-sm font-bold ${isCompleted && s1 > s2 ? 'text-emerald-600' : 'text-slate-800'}`}>
-                            {p1Name}
-                          </span>
-                        </div>
-                        <span className="font-mono font-bold text-sm bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-900">
-                          {s1}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {m.sideB && m.sideB !== 'NONE' && (
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                              m.sideB === 'BLACK' ? 'bg-slate-900 text-white' : m.sideB === 'BYE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-800'
-                            }`}>
-                              {m.sideB === 'BLACK' ? 'BLACK ♚' : m.sideB}
-                            </span>
-                          )}
-                          <span className={`text-sm font-bold ${isCompleted && s2 > s1 ? 'text-emerald-600' : 'text-slate-800'}`}>
-                            {p2Name}
-                          </span>
-                        </div>
-                        <span className="font-mono font-bold text-sm bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-900">
-                          {s2}
-                        </span>
-                      </div>
-                    </div>
+                    {/* Match Cards inside this Round Box */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {roundMatches.map((m: any) => {
+                        const p1Name = m.participantA?.displayName || m.player1Name || 'TBD'
+                        const p2Name = m.participantB?.displayName || m.player2Name || 'TBD'
+                        const s1 = m.participantA?.score ?? m.scoreA ?? 0
+                        const s2 = m.participantB?.score ?? m.scoreB ?? 0
+                        const isCompleted = m.status === 'COMPLETED'
+                        const isWinner1 = m.winner === p1Name || (s1 > s2 && !m.winner)
+                        const isWinner2 = m.winner === p2Name || (s2 > s1 && !m.winner)
+                        const isFinal = m.roundName === 'Final'
+                        const isBye = m.resultType === 'BYE' || p2Name === 'BYE'
 
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <Link
-                        to={`/matches/${m.id}`}
-                        className="text-xs text-slate-500 hover:text-primary font-semibold flex items-center gap-1"
-                      >
-                        Match Center <ChevronRight className="h-3.5 w-3.5" />
-                      </Link>
+                        return (
+                          <div
+                            key={m.id}
+                            className="p-5 rounded-2xl bg-white border border-slate-200/90 hover:border-primary/40 transition-all shadow-sm hover:shadow group flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-primary">
+                                    {m.courtName || `Board ${m.boardNumber || 1}`}
+                                  </span>
+                                  {m.pairingReason && (
+                                    <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md font-medium border border-slate-200/60">
+                                      {m.pairingReason}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${getStatusColor(m.status)}`}>
+                                  {m.status || 'SCHEDULED'}
+                                </span>
+                              </div>
 
-                      <button
-                        onClick={() => {
-                          setScoringMatch(m)
-                          setScoreA(s1)
-                          setScoreB(s2)
-                          setMatchWinner('participantA')
-                        }}
-                        className="px-3.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors flex items-center gap-1.5"
-                      >
-                        <Activity className="h-3.5 w-3.5" />
-                        {isCompleted ? 'Edit Score' : 'Submit Score'}
-                      </button>
+                              <div className="space-y-2 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {m.sideA && m.sideA !== 'NONE' && (
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                        m.sideA === 'WHITE' ? 'bg-amber-100 text-amber-900 border border-amber-200 shadow-xs' : 'bg-slate-200 text-slate-800'
+                                      }`}>
+                                        {m.sideA === 'WHITE' ? 'WHITE ♔' : m.sideA}
+                                      </span>
+                                    )}
+                                    <span className={`text-sm font-bold ${isCompleted && isWinner1 ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                      {p1Name}
+                                    </span>
+
+                                    {/* Knockout Elimination / Advance Badges */}
+                                    {isKnockout && isCompleted && (
+                                      isBye ? (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                          1st Round Bye (Advances ↗)
+                                        </span>
+                                      ) : isWinner1 ? (
+                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                          {isFinal ? '🏆 CHAMPION' : 'ADVANCES ↗'}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                                          {isFinal ? '🥈 RUNNER-UP' : 'ELIMINATED ✕'}
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                  <span className="font-mono font-bold text-sm bg-white border border-slate-200 px-2.5 py-0.5 rounded text-slate-900 shadow-2xs">
+                                    {s1}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {m.sideB && m.sideB !== 'NONE' && (
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                        m.sideB === 'BLACK' ? 'bg-slate-900 text-white shadow-xs' : m.sideB === 'BYE' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-800'
+                                      }`}>
+                                        {m.sideB === 'BLACK' ? 'BLACK ♚' : m.sideB}
+                                      </span>
+                                    )}
+                                    <span className={`text-sm font-bold ${isCompleted && isWinner2 ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                      {p2Name}
+                                    </span>
+
+                                    {/* Knockout Elimination / Advance Badges */}
+                                    {isKnockout && isCompleted && !isBye && (
+                                      isWinner2 ? (
+                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                          {isFinal ? '🏆 CHAMPION' : 'ADVANCES ↗'}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                                          {isFinal ? '🥈 RUNNER-UP' : 'ELIMINATED ✕'}
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                  <span className="font-mono font-bold text-sm bg-white border border-slate-200 px-2.5 py-0.5 rounded text-slate-900 shadow-2xs">
+                                    {s2}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                              <Link
+                                to={`/matches/${m.id}`}
+                                className="text-xs text-slate-500 hover:text-primary font-semibold flex items-center gap-1"
+                              >
+                                Match Center <ChevronRight className="h-3.5 w-3.5" />
+                              </Link>
+
+                              <button
+                                onClick={() => {
+                                  setScoringMatch(m)
+                                  setScoreA(s1)
+                                  setScoreB(s2)
+                                  setMatchWinner('participantA')
+                                }}
+                                className="px-3.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors flex items-center gap-1.5"
+                              >
+                                <Activity className="h-3.5 w-3.5" />
+                                {isCompleted ? 'Edit Score' : 'Submit Score'}
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -707,21 +929,84 @@ export function TournamentDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200">
-                    <tr>
-                      <th className="px-5 py-3 text-center w-16">Rank</th>
-                      <th className="px-5 py-3">Competitor</th>
-                      <th className="px-5 py-3 text-center">Played</th>
-                      <th className="px-5 py-3 text-center">Won</th>
-                      <th className="px-5 py-3 text-center">Drawn</th>
-                      <th className="px-5 py-3 text-center">Lost</th>
-                      <th className="px-5 py-3 text-center font-black text-primary">Points</th>
-                      <th className="px-5 py-3 text-center">Buchholz</th>
-                      <th className="px-5 py-3 text-center">S-B</th>
-                    </tr>
+                    {isKnockout ? (
+                      <tr>
+                        <th className="px-5 py-3 text-center w-16">Rank</th>
+                        <th className="px-5 py-3">Competitor</th>
+                        <th className="px-5 py-3">Tournament Stage / Status</th>
+                        <th className="px-5 py-3 text-center">Matches Won</th>
+                        <th className="px-5 py-3 text-center">Matches Lost</th>
+                        <th className="px-5 py-3 text-center font-black text-primary">Points</th>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <th className="px-5 py-3 text-center w-16">Rank</th>
+                        <th className="px-5 py-3">Competitor</th>
+                        <th className="px-5 py-3 text-center">Played</th>
+                        <th className="px-5 py-3 text-center">Won</th>
+                        <th className="px-5 py-3 text-center">Drawn</th>
+                        <th className="px-5 py-3 text-center">Lost</th>
+                        <th className="px-5 py-3 text-center font-black text-primary">Points</th>
+                        <th className="px-5 py-3 text-center">Buchholz</th>
+                        <th className="px-5 py-3 text-center">S-B</th>
+                      </tr>
+                    )}
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {standings.map((row: any, idx: number) => {
                       const rank = row.rank || idx + 1
+                      const isChamp = row.isChampion || row.medal === 'Champion'
+                      const isRunnerUp = row.medal === 'Runner-up'
+
+                      if (isKnockout) {
+                        return (
+                          <tr key={row.participantId || idx} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="px-5 py-3.5 text-center">
+                              <span
+                                className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
+                                  rank === 1
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300 shadow-sm'
+                                    : rank === 2
+                                    ? 'bg-slate-200 text-slate-800'
+                                    : rank === 3
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'text-slate-500'
+                                }`}
+                              >
+                                {rank}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="font-bold text-slate-900">{row.participantName}</div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              {isChamp ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-xs">
+                                  🏆 CHAMPION
+                                </span>
+                              ) : isRunnerUp ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-800 border border-slate-300">
+                                  🥈 RUNNER-UP
+                                </span>
+                              ) : row.eliminatedIn && row.eliminatedIn !== 'Pending' ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                  Eliminated in {row.eliminatedIn}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  In Contention ↗
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3.5 text-center text-emerald-600 font-bold">{row.won || 0}</td>
+                            <td className="px-5 py-3.5 text-center text-rose-500 font-medium">{row.lost || 0}</td>
+                            <td className="px-5 py-3.5 text-center font-black text-base text-primary">
+                              {row.points !== undefined ? Number(row.points).toFixed(1) : '0.0'}
+                            </td>
+                          </tr>
+                        )
+                      }
+
                       return (
                         <tr key={row.participantId || idx} className="hover:bg-slate-50/60 transition-colors">
                           <td className="px-5 py-3.5 text-center">
