@@ -48,10 +48,12 @@ public class Tournament {
     @Column(name = "banner_url")
     private String bannerUrl;
 
+    @Builder.Default
     @Column(name = "tournament_type")
     @Enumerated(EnumType.STRING)
     private TournamentType tournamentType = TournamentType.CASUAL;
 
+    @Builder.Default
     @Column(name = "participant_type")
     @Enumerated(EnumType.STRING)
     private ParticipantType participantType = ParticipantType.INDIVIDUAL;
@@ -66,6 +68,7 @@ public class Tournament {
     @Column(name = "rounds_per_day")
     private Integer roundsPerDay;
 
+    @Builder.Default
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private TournamentStatus status = TournamentStatus.DRAFT;
@@ -115,6 +118,7 @@ public class Tournament {
     @Column(name = "max_participants")
     private Integer maxParticipants;
 
+    @Builder.Default
     @Column(name = "registration_mode")
     @Enumerated(EnumType.STRING)
     private RegistrationMode registrationMode = RegistrationMode.OPEN_REGISTRATION;
@@ -130,15 +134,19 @@ public class Tournament {
     private String genderRestriction;
 
     // Flags
+    @Builder.Default
     @Column(name = "is_official")
     private boolean isOfficial = false;
 
+    @Builder.Default
     @Column(name = "is_rated")
     private boolean isRated = false;
 
+    @Builder.Default
     @Column(name = "is_public")
     private boolean isPublic = true;
 
+    @Builder.Default
     @Column(name = "has_registration_fee")
     private boolean hasRegistrationFee = false;
 

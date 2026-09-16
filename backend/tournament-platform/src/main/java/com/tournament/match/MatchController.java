@@ -1,5 +1,7 @@
 package com.tournament.match;
 
+import com.tournament.tournament.TournamentService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,7 +11,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/v1/matches")
+@RequiredArgsConstructor
 public class MatchController {
+
+    private final TournamentService tournamentService;
 
     // In-memory live match state store for real-time scorekeeper updates
     private final Map<String, Map<String, Object>> liveMatches = new ConcurrentHashMap<>();
@@ -26,10 +31,25 @@ public class MatchController {
         @RequestBody Map<String, Object> scoreUpdate
     ) {
         Map<String, Object> match = liveMatches.computeIfAbsent(id, this::createInitialMatch);
-        if (scoreUpdate.containsKey("scoreA")) match.put("scoreA", scoreUpdate.get("scoreA"));
-        if (scoreUpdate.containsKey("scoreB")) match.put("scoreB", scoreUpdate.get("scoreB"));
-        if (scoreUpdate.containsKey("status")) match.put("status", scoreUpdate.get("status"));
+        Number scoreA = null;
+        Number scoreB = null;
+        String status = (String) scoreUpdate.get("status");
+        String winner = (String) scoreUpdate.get("winner");
+
+        if (scoreUpdate.containsKey("scoreA")) {
+            scoreA = (Number) scoreUpdate.get("scoreA");
+            match.put("scoreA", scoreA);
+        }
+        if (scoreUpdate.containsKey("scoreB")) {
+            scoreB = (Number) scoreUpdate.get("scoreB");
+            match.put("scoreB", scoreB);
+        }
+        if (status != null) match.put("status", status);
+        if (winner != null) match.put("winner", winner);
         match.put("updatedAt", OffsetDateTime.now().toString());
+
+        tournamentService.updateMatchResult(id, scoreA, scoreB, status, winner);
+
         return ResponseEntity.ok(match);
     }
 
@@ -40,10 +60,28 @@ public class MatchController {
     ) {
         Map<String, Object> match = liveMatches.computeIfAbsent(id, this::createInitialMatch);
         match.put("status", "COMPLETED");
-        if (body != null && body.containsKey("winner")) {
-            match.put("winner", body.get("winner"));
+        String winner = null;
+        Number scoreA = (Number) match.get("scoreA");
+        Number scoreB = (Number) match.get("scoreB");
+
+        if (body != null) {
+            if (body.containsKey("winner")) {
+                winner = (String) body.get("winner");
+                match.put("winner", winner);
+            }
+            if (body.containsKey("scoreA")) {
+                scoreA = (Number) body.get("scoreA");
+                match.put("scoreA", scoreA);
+            }
+            if (body.containsKey("scoreB")) {
+                scoreB = (Number) body.get("scoreB");
+                match.put("scoreB", scoreB);
+            }
         }
+
         match.put("completedAt", OffsetDateTime.now().toString());
+        tournamentService.updateMatchResult(id, scoreA, scoreB, "COMPLETED", winner);
+
         return ResponseEntity.ok(match);
     }
 

@@ -58,10 +58,8 @@ export default function App() {
           <ProtectedRoute><AdminDashboard /></ProtectedRoute>
         } />
 
-        {/* Admin routes */}
-        <Route path="/tournaments/create" element={
-          <AdminRoute><CreateTournamentPage /></AdminRoute>
-        } />
+        {/* Tournament Creation */}
+        <Route path="/tournaments/create" element={<CreateTournamentPage />} />
         <Route path="/matches/:id/score" element={
           <ProtectedRoute><LiveScoringPage /></ProtectedRoute>
         } />

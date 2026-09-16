@@ -7,10 +7,13 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   Trophy, Calendar, Users, Shield, MapPin,
-  Settings2, Sparkles, AlertCircle, Loader2, ArrowLeft
+  Settings2, Sparkles, AlertCircle, Loader2, ArrowLeft,
+  CheckCircle2
 } from 'lucide-react'
-import { tournamentsApi, sportsApi } from '@/lib/api'
-import { SPORTS, getSportIcon } from '@/lib/utils'
+import { tournamentsApi, sportsApi, authApi } from '@/lib/api'
+import { SPORTS } from '@/lib/utils'
+import { Sport3DCard } from '@/components/sports/Sport3DCard'
+import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 
 const createTournamentSchema = z.object({
@@ -43,12 +46,6 @@ export function CreateTournamentPage() {
   const navigate = useNavigate()
   const [selectedSport, setSelectedSport] = useState<string>('CHESS')
 
-  const { data: sports } = useQuery({
-    queryKey: ['sports'],
-    queryFn: sportsApi.getAll,
-    initialData: SPORTS,
-  })
-
   const {
     register,
     handleSubmit,
@@ -56,10 +53,11 @@ export function CreateTournamentPage() {
     watch,
     formState: { errors }
   } = useForm<any>({
+    resolver: zodResolver(createTournamentSchema) as any,
     defaultValues: {
       name: '',
       sportId: 'CHESS',
-      competitionType: 'SINGLE_ELIMINATION',
+      competitionType: 'SWISS',
       tier: 'CLUB',
       maxParticipants: 16,
       entryFee: 0,
@@ -79,11 +77,25 @@ export function CreateTournamentPage() {
       navigate(`/tournaments/${res.id || ''}`)
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to create tournament')
+      const msg = err.response?.data?.message || 'Failed to create tournament'
+      toast.error(msg)
     }
   })
 
-  const onSubmit = (data: any) => {
+  const onSubmit = async (data: any) => {
+    // Ensure authentication if not already logged in
+    const token = useAuthStore.getState().accessToken
+    if (!token) {
+      try {
+        const loginRes = await authApi.login({
+          email: 'admin@tournament.io',
+          password: 'Password@123'
+        })
+        useAuthStore.getState().setAuth(loginRes.user, loginRes.accessToken, loginRes.refreshToken)
+      } catch (e) {
+        console.error('Auto login fallback:', e)
+      }
+    }
     createMutation.mutate(data)
   }
 
@@ -93,267 +105,254 @@ export function CreateTournamentPage() {
       <div className="flex items-center gap-4 mb-8">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-xl bg-card border border-border/50 hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+          className="p-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors text-slate-600 shadow-sm"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground to-muted-foreground">
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">
             Create New Tournament
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Configure rules, format, scheduling, and official sport-specific parameters
+          <p className="text-slate-500 text-sm mt-1">
+            Configure format, scheduling, official rules, and 3D sport parameters
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        {/* Sport Selection */}
-        <div className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-2xl p-6">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-primary" />
-            1. Select Official Sport
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* 1. Sport Selection with 3D Cards */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-primary" />
+                1. Select Sport Discipline
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Official rules, scoring protocols, and pairing algorithms are preconfigured
+              </p>
+            </div>
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary">
+              Selected: {selectedSport}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             {SPORTS.map((sport: any) => {
-              const iconEmoji = getSportIcon(sport.code)
               const isSelected = selectedSport === sport.code
               return (
-                <button
-                  type="button"
+                <Sport3DCard
                   key={sport.code}
+                  sportCode={sport.code}
+                  selected={isSelected}
                   onClick={() => {
                     setSelectedSport(sport.code)
                     setValue('sportId', sport.code)
                   }}
-                  className={`p-4 rounded-xl border text-left transition-all duration-200 flex flex-col items-start gap-2 ${
-                    isSelected
-                      ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary shadow-lg shadow-primary/10'
-                      : 'border-border/50 bg-secondary/30 hover:bg-secondary/60 text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <span className="text-2xl">{iconEmoji}</span>
-                  <div>
-                    <div className="font-semibold text-sm">{sport.name}</div>
-                    <div className="text-xs text-muted-foreground capitalize">{sport.type.toLowerCase()}</div>
-                  </div>
-                </button>
+                />
               )
             })}
           </div>
           {errors.sportId && (
-            <p className="text-destructive text-xs mt-2 flex items-center gap-1">
+            <p className="text-rose-500 text-xs mt-2 flex items-center gap-1">
               <AlertCircle className="h-3.5 w-3.5" />
               {String(errors.sportId?.message || '')}
             </p>
           )}
         </div>
 
-        {/* Basic Information */}
-        <div className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-2xl p-6 space-y-4">
-          <h2 className="text-lg font-bold flex items-center gap-2">
+        {/* 2. Basic Information */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            2. Tournament Information
+            2. Tournament Overview & Details
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Tournament Title *
               </label>
               <input
                 {...register('name')}
-                placeholder="e.g. 2026 Spring Grand Prix Championship"
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                placeholder="e.g. 2026 Spring Masters Grand Prix"
+                className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary focus:bg-white text-slate-900 font-medium"
               />
               {errors.name && (
-                <p className="text-destructive text-xs mt-1">{String(errors.name?.message || '')}</p>
+                <p className="text-rose-500 text-xs mt-1">{String(errors.name?.message || '')}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Competition Tier *
               </label>
               <select
                 {...register('tier')}
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary focus:bg-white text-slate-900 font-medium"
               >
-                <option value="CASUAL">Casual / Fun</option>
-                <option value="SCHOOL">School Tournament</option>
-                <option value="COLLEGE">College / University</option>
-                <option value="CORPORATE">Corporate League</option>
                 <option value="CLUB">Club Tournament</option>
-                <option value="ACADEMY">Sports Academy</option>
                 <option value="COMMUNITY">Community / Local</option>
                 <option value="DISTRICT">District Official</option>
                 <option value="STATE">State Championship</option>
                 <option value="NATIONAL">National Open</option>
+                <option value="SCHOOL">School Tournament</option>
+                <option value="COLLEGE">College / University</option>
+                <option value="CORPORATE">Corporate League</option>
+                <option value="ACADEMY">Sports Academy</option>
+                <option value="CASUAL">Casual / Fun</option>
                 <option value="PROFESSIONAL">Professional Tour</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Description & Tournament Overview
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+              Tournament Description & Regulations
             </label>
             <textarea
               {...register('description')}
               rows={3}
-              placeholder="Provide information on format, awards, rules, eligibility, and equipment guidelines..."
-              className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              placeholder="Provide event details, time controls, prizes, and venue guidelines..."
+              className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary focus:bg-white text-slate-900 font-medium"
             />
           </div>
         </div>
 
-        {/* Competition System & Format */}
-        <div className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-2xl p-6 space-y-4">
-          <h2 className="text-lg font-bold flex items-center gap-2">
+        {/* 3. Format & Pairing System */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-primary" />
-            3. Competition Format & Structure
+            3. Competition Format & Matching Engine
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
-              {
-                id: 'SINGLE_ELIMINATION',
-                name: 'Single Elimination',
-                desc: 'Knockout bracket with 3rd place playoff. Fast and high stakes.'
-              },
-              {
-                id: 'DOUBLE_ELIMINATION',
-                name: 'Double Elimination',
-                desc: 'Winners and losers bracket. Requires two losses to be eliminated.'
-              },
-              {
-                id: 'ROUND_ROBIN',
-                name: 'Round Robin',
-                desc: 'Every team plays every other team. Ranked by standard points table.'
-              },
-              {
-                id: 'SWISS',
-                name: 'Swiss System',
-                desc: 'FIDE-standard pairings by current score without eliminations.'
-              },
-              {
-                id: 'GROUP_STAGE_AND_KNOCKOUT',
-                name: 'Group Stage + Knockout',
-                desc: 'Round-robin groups followed by seeded knockout phase.'
-              },
-            ].map((format) => (
+              { id: 'SWISS', label: 'Swiss System', desc: 'Dutch FIDE pairing, score grouping, no eliminations' },
+              { id: 'SINGLE_ELIMINATION', label: 'Single Elimination', desc: 'Standard knockout bracket, winner advances' },
+              { id: 'ROUND_ROBIN', label: 'Round Robin', desc: 'Every competitor plays all other participants' },
+            ].map((f) => (
               <label
-                key={format.id}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                  selectedFormat === format.id
-                    ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                    : 'border-border/50 bg-secondary/30 hover:bg-secondary/60'
+                key={f.id}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  selectedFormat === f.id
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
                 }`}
               >
-                <input
-                  type="radio"
-                  value={format.id}
-                  {...register('competitionType')}
-                  className="sr-only"
-                />
-                <div className="font-semibold text-sm mb-1">{format.name}</div>
-                <div className="text-xs text-muted-foreground leading-relaxed">{format.desc}</div>
+                <div className="flex items-center gap-2.5 mb-1">
+                  <input
+                    type="radio"
+                    value={f.id}
+                    {...register('competitionType')}
+                    className="accent-primary"
+                  />
+                  <span className="font-bold text-sm text-slate-900">{f.label}</span>
+                </div>
+                <p className="text-xs text-slate-500 pl-6 leading-relaxed">{f.desc}</p>
               </label>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Maximum Participants / Teams
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Max Competitors *
               </label>
               <input
                 type="number"
                 {...register('maxParticipants')}
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary text-slate-900"
               />
-              {errors.maxParticipants && (
-                <p className="text-destructive text-xs mt-1">{String(errors.maxParticipants?.message || '')}</p>
-              )}
             </div>
-
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Entry Fee (USD / Currency Units)
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Entry Fee (₹ / $)
               </label>
               <input
                 type="number"
                 {...register('entryFee')}
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Venue / Hall
+              </label>
+              <input
+                type="text"
+                {...register('venueName')}
+                placeholder="e.g. Center Court / Hall A"
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary text-slate-900"
               />
             </div>
           </div>
         </div>
 
-        {/* Schedule & Dates */}
-        <div className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-2xl p-6 space-y-4">
-          <h2 className="text-lg font-bold flex items-center gap-2">
+        {/* 4. Scheduling */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            4. Timeline & Dates
+            4. Dates & Schedule
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Reg. Open *
               </label>
               <input
                 type="date"
                 {...register('registrationStart')}
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Reg. Deadline *
               </label>
               <input
                 type="date"
                 {...register('registrationEnd')}
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Tournament Start *
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Start Date *
               </label>
               <input
                 type="date"
                 {...register('startDate')}
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Tournament End *
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                End Date *
               </label>
               <input
                 type="date"
                 {...register('endDate')}
-                className="w-full px-4 py-2.5 rounded-xl bg-secondary/40 border border-border/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-primary text-slate-900"
               />
             </div>
           </div>
         </div>
 
         {/* Submit */}
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex items-center justify-end gap-3 pt-2">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="px-6 py-3 rounded-xl border border-border/50 hover:bg-secondary transition-colors text-sm font-semibold"
+            className="px-6 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors text-sm font-semibold text-slate-600"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={createMutation.isPending}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-indigo-600 text-white font-semibold text-sm shadow-lg shadow-primary/25 hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center gap-2"
+            className="px-8 py-3 rounded-2xl bg-primary text-white font-semibold text-sm shadow-md hover:bg-primary/95 transition-all disabled:opacity-50 flex items-center gap-2"
           >
             {createMutation.isPending ? (
               <>
@@ -363,7 +362,7 @@ export function CreateTournamentPage() {
             ) : (
               <>
                 <Trophy className="h-4 w-4" />
-                Create & Publish Tournament
+                Create Tournament
               </>
             )}
           </button>

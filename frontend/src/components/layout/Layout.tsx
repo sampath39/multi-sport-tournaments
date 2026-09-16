@@ -34,16 +34,16 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-background">
       {/* ─── Navbar ──────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 glass border-b border-white/10">
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-glow-sm group-hover:shadow-glow-md transition-all">
-                <Trophy className="w-4 h-4 text-white" />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md group-hover:scale-105 transition-all">
+                <Trophy className="w-5 h-5 text-white" />
               </div>
-              <span className="font-display font-bold text-lg gradient-text hidden sm:block">
-                TournamentPro
+              <span className="font-display font-black text-xl text-slate-900 tracking-tight hidden sm:block">
+                Tournament<span className="text-primary">Pro</span>
               </span>
             </Link>
 
@@ -53,52 +53,45 @@ export function Layout() {
                 <Link
                   key={link.href}
                   to={link.href}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all"
                 >
-                  <link.icon className="w-4 h-4" />
+                  <link.icon className="w-4 h-4 text-slate-500" />
                   {link.label}
                 </Link>
               ))}
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-2">
-              {/* Search */}
-              <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
-                <Search className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-2.5">
+              {/* Create Tournament */}
+              <Link
+                to="/tournaments/create"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:bg-primary/95 transition-all"
+              >
+                <span>+ Create Tournament</span>
+              </Link>
 
               {isAuthenticated ? (
                 <>
                   {/* Notifications */}
-                  <button className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
+                  <button className="relative p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all">
                     <Bell className="w-4 h-4" />
-                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-violet-500 rounded-full" />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full" />
                   </button>
-
-                  {/* Create Tournament */}
-                  {isAdmin() && (
-                    <Link
-                      to="/tournaments/create"
-                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium transition-all shadow-glow-sm hover:shadow-glow-md"
-                    >
-                      <span>+ Create</span>
-                    </Link>
-                  )}
 
                   {/* User Menu */}
                   <div className="relative">
                     <button
                       onClick={() => setUserMenuOpen(!userMenuOpen)}
-                      className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg hover:bg-white/5 transition-all"
+                      className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-xl hover:bg-slate-100 transition-all"
                     >
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center text-xs font-bold text-white">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
                         {user?.displayName?.[0] || user?.fullName?.[0] || 'U'}
                       </div>
-                      <span className="hidden sm:block text-sm font-medium max-w-[100px] truncate">
-                        {user?.displayName || user?.fullName}
+                      <span className="hidden sm:block text-xs font-bold text-slate-800 max-w-[120px] truncate">
+                        {user?.displayName || user?.fullName || 'Organizer'}
                       </span>
-                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                     </button>
 
                     <AnimatePresence>
@@ -108,25 +101,34 @@ export function Layout() {
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -8, scale: 0.95 }}
                           transition={{ duration: 0.15 }}
-                          className="absolute right-0 top-full mt-2 w-48 glass-card py-1 shadow-card"
+                          className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl border border-slate-200 py-1.5 shadow-xl z-50 text-slate-800"
                         >
-                          <div className="px-3 py-2 border-b border-white/10">
-                            <p className="text-sm font-medium truncate">{user?.fullName}</p>
-                            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                          <div className="px-3.5 py-2 border-b border-slate-100">
+                            <p className="text-sm font-bold text-slate-900 truncate">{user?.fullName || user?.displayName}</p>
+                            <p className="text-xs text-slate-400 truncate">{user?.email}</p>
                           </div>
-                          <Link
-                            to="/dashboard"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors"
-                          >
-                            <LayoutDashboard className="w-4 h-4" /> Dashboard
-                          </Link>
-                          <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors w-full"
-                          >
-                            <LogOut className="w-4 h-4" /> Sign out
-                          </button>
+                          <div className="py-1">
+                            <Link
+                              to="/dashboard"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+                            >
+                              <LayoutDashboard className="w-3.5 h-3.5 text-slate-500" />
+                              Dashboard
+                            </Link>
+                          </div>
+                          <div className="pt-1 border-t border-slate-100">
+                            <button
+                              onClick={() => {
+                                setUserMenuOpen(false)
+                                handleLogout()
+                              }}
+                              className="w-full flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                              Sign Out
+                            </button>
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -134,11 +136,17 @@ export function Layout() {
                 </>
               ) : (
                 <div className="flex items-center gap-2">
-                  <Link to="/login" className="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                    Sign in
+                  <Link
+                    to="/login"
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-all"
+                  >
+                    Log in
                   </Link>
-                  <Link to="/register" className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium transition-all shadow-glow-sm">
-                    Get started
+                  <Link
+                    to="/register"
+                    className="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-all shadow-sm"
+                  >
+                    Sign up
                   </Link>
                 </div>
               )}

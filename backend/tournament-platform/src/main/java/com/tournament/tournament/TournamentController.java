@@ -40,10 +40,9 @@ public class TournamentController {
 
     @PostMapping
     public ResponseEntity<TournamentDto> createTournament(
-        @RequestBody Tournament tournament,
-        @RequestParam(required = false) UUID sportId
+        @RequestBody CreateTournamentRequest request
     ) {
-        TournamentDto created = tournamentService.createTournament(tournament, sportId);
+        TournamentDto created = tournamentService.createTournament(request);
         return ResponseEntity.ok(created);
     }
 
@@ -65,14 +64,14 @@ public class TournamentController {
     }
 
     @GetMapping("/{id}/participants")
-    public ResponseEntity<List<TournamentParticipant>> getParticipants(@PathVariable UUID id) {
+    public ResponseEntity<List<TournamentParticipantDto>> getParticipants(@PathVariable UUID id) {
         return ResponseEntity.ok(tournamentService.getParticipants(id));
     }
 
     @PostMapping("/{id}/participants")
-    public ResponseEntity<TournamentParticipant> addParticipant(
+    public ResponseEntity<TournamentParticipantDto> addParticipant(
         @PathVariable UUID id,
-        @RequestBody TournamentParticipant participant
+        @RequestBody Map<String, Object> participant
     ) {
         return ResponseEntity.ok(tournamentService.addParticipant(id, participant));
     }
@@ -89,11 +88,12 @@ public class TournamentController {
 
     @PostMapping("/{id}/rounds/generate")
     public ResponseEntity<Map<String, Object>> generateRounds(@PathVariable UUID id) {
-        List<Map<String, Object>> fixtures = tournamentService.getFixtures(id);
+        List<Map<String, Object>> fixtures = tournamentService.generateFixtures(id);
         return ResponseEntity.ok(Map.of(
             "message", "Fixtures generated successfully",
             "tournamentId", id,
-            "fixturesCount", fixtures.size()
+            "fixturesCount", fixtures.size(),
+            "fixtures", fixtures
         ));
     }
 
@@ -105,5 +105,13 @@ public class TournamentController {
     @GetMapping("/{id}/bracket")
     public ResponseEntity<Map<String, Object>> getBracket(@PathVariable UUID id) {
         return ResponseEntity.ok(tournamentService.getBracket(id));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTournament(@PathVariable UUID id) {
+        if (tournamentService.deleteTournament(id)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 }

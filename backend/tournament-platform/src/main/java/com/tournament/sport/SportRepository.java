@@ -10,5 +10,6 @@ import java.util.UUID;
 @Repository
 public interface SportRepository extends JpaRepository<Sport, UUID> {
     Optional<Sport> findByCode(String code);
+    Optional<Sport> findByCodeIgnoreCase(String code);
     List<Sport> findByIsActiveTrueOrderBySortOrderAsc();
 }

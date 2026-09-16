@@ -43,3 +43,4 @@ Thumbs.db
 # Docker data
 postgres_data/
 redis_data/
+scratch/
