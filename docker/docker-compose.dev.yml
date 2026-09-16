@@ -1,0 +1,23 @@
+version: '3.9'
+
+# Development override — runs only DB + Redis
+# Usage: docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml up -d
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: tournament_platform
+      POSTGRES_USER: tournament_user
+      POSTGRES_PASSWORD: tournament_secret_2026
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  # Don't run backend/frontend containers in dev — run them locally
+  backend:
+    profiles: ["prod"]
+
+  frontend:
+    profiles: ["prod"]

@@ -1,0 +1,14 @@
+package com.tournament.tournament;
+
+public enum TournamentFormat {
+    ROUND_ROBIN,
+    DOUBLE_ROUND_ROBIN,
+    SWISS,
+    SINGLE_ELIMINATION,
+    DOUBLE_ELIMINATION,
+    GROUP_STAGE,
+    GROUP_STAGE_KNOCKOUT,
+    LEAGUE,
+    LEAGUE_AND_PLAYOFF,
+    CUSTOM
+}
