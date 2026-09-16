@@ -1,6 +1,8 @@
 spring:
   application:
     name: tournament-platform
+  main:
+    allow-bean-definition-overriding: true
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/tournament_platform}
@@ -15,7 +17,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     show-sql: false
     properties:
       hibernate:
@@ -96,9 +98,7 @@ app:
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
 
   cors:
-    allowed-origins:
-      - ${FRONTEND_URL:http://localhost:5173}
-      - http://localhost:3000
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:80,http://localhost}
 
   supabase:
     url: ${SUPABASE_URL:}
@@ -113,6 +113,8 @@ app:
   websocket:
     allowed-origins:
       - ${FRONTEND_URL:http://localhost:5173}
+      - http://localhost:80
+      - http://localhost
 
 logging:
   level:

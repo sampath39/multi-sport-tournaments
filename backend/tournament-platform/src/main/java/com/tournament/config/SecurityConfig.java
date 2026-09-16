@@ -38,23 +38,21 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final UserDetailsService userDetailsService;
 
-    @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:80,http://localhost}")
+    private List<String> allowedOrigins = List.of("http://localhost:5173", "http://localhost:3000", "http://localhost:80", "http://localhost");
 
     // Public endpoints — no auth required
     private static final String[] PUBLIC_GET_ENDPOINTS = {
         "/api/v1/tournaments",
-        "/api/v1/tournaments/{id}",
-        "/api/v1/tournaments/{id}/standings",
-        "/api/v1/tournaments/{id}/rounds",
-        "/api/v1/tournaments/{id}/bracket",
-        "/api/v1/tournaments/{id}/fixtures",
-        "/api/v1/tournaments/{id}/results",
-        "/api/v1/matches/{id}",
-        "/api/v1/players/{id}",
+        "/api/v1/tournaments/**",
+        "/api/v1/matches/**",
+        "/api/v1/players/**",
+        "/api/v1/venues",
+        "/api/v1/venues/**",
         "/api/v1/sports",
-        "/api/v1/sports/{id}",
+        "/api/v1/sports/**",
         "/actuator/health",
+        "/actuator/**",
         "/api-docs/**",
         "/swagger-ui/**",
         "/swagger-ui.html",
@@ -66,7 +64,9 @@ public class SecurityConfig {
         "/api/v1/auth/register",
         "/api/v1/auth/refresh",
         "/api/v1/auth/forgot-password",
-        "/api/v1/auth/reset-password"
+        "/api/v1/auth/reset-password",
+        "/api/v1/matches/**",
+        "/api/v1/tournaments/**"
     };
 
     @Bean

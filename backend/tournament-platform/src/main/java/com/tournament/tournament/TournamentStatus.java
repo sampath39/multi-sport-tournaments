@@ -8,6 +8,7 @@ public enum TournamentStatus {
     SEEDING,
     SCHEDULED,
     LIVE,
+    IN_PROGRESS,
     PAUSED,
     COMPLETED,
     CANCELLED,

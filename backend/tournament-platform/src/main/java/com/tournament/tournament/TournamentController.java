@@ -1,0 +1,109 @@
+package com.tournament.tournament;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/tournaments")
+@RequiredArgsConstructor
+public class TournamentController {
+
+    private final TournamentService tournamentService;
+
+    @GetMapping
+    public ResponseEntity<Page<TournamentDto>> listTournaments(
+        @RequestParam(required = false) TournamentStatus status,
+        @RequestParam(required = false) String sport,
+        @RequestParam(required = false) String search,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "12") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TournamentDto> result = tournamentService.listTournaments(status, sport, search, null, pageable);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TournamentDto> getTournament(@PathVariable UUID id) {
+        return tournamentService.getTournamentById(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<TournamentDto> createTournament(
+        @RequestBody Tournament tournament,
+        @RequestParam(required = false) UUID sportId
+    ) {
+        TournamentDto created = tournamentService.createTournament(tournament, sportId);
+        return ResponseEntity.ok(created);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TournamentDto> updateTournament(
+        @PathVariable UUID id,
+        @RequestBody Tournament tournament
+    ) {
+        return tournamentService.updateTournament(id, tournament)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/publish")
+    public ResponseEntity<TournamentDto> publishTournament(@PathVariable UUID id) {
+        return tournamentService.publishTournament(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/participants")
+    public ResponseEntity<List<TournamentParticipant>> getParticipants(@PathVariable UUID id) {
+        return ResponseEntity.ok(tournamentService.getParticipants(id));
+    }
+
+    @PostMapping("/{id}/participants")
+    public ResponseEntity<TournamentParticipant> addParticipant(
+        @PathVariable UUID id,
+        @RequestBody TournamentParticipant participant
+    ) {
+        return ResponseEntity.ok(tournamentService.addParticipant(id, participant));
+    }
+
+    @GetMapping("/{id}/fixtures")
+    public ResponseEntity<List<Map<String, Object>>> getFixtures(@PathVariable UUID id) {
+        return ResponseEntity.ok(tournamentService.getFixtures(id));
+    }
+
+    @GetMapping("/{id}/rounds")
+    public ResponseEntity<List<Map<String, Object>>> getRounds(@PathVariable UUID id) {
+        return ResponseEntity.ok(tournamentService.getFixtures(id));
+    }
+
+    @PostMapping("/{id}/rounds/generate")
+    public ResponseEntity<Map<String, Object>> generateRounds(@PathVariable UUID id) {
+        List<Map<String, Object>> fixtures = tournamentService.getFixtures(id);
+        return ResponseEntity.ok(Map.of(
+            "message", "Fixtures generated successfully",
+            "tournamentId", id,
+            "fixturesCount", fixtures.size()
+        ));
+    }
+
+    @GetMapping("/{id}/standings")
+    public ResponseEntity<List<Map<String, Object>>> getStandings(@PathVariable UUID id) {
+        return ResponseEntity.ok(tournamentService.getStandings(id));
+    }
+
+    @GetMapping("/{id}/bracket")
+    public ResponseEntity<Map<String, Object>> getBracket(@PathVariable UUID id) {
+        return ResponseEntity.ok(tournamentService.getBracket(id));
+    }
+}

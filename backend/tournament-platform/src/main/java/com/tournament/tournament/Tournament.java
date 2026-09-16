@@ -139,6 +139,12 @@ public class Tournament {
     @Column(name = "is_public")
     private boolean isPublic = true;
 
+    @Column(name = "has_registration_fee")
+    private boolean hasRegistrationFee = false;
+
+    @Column(name = "registration_fee_amount")
+    private BigDecimal registrationFeeAmount;
+
     // Config snapshot (immutable after publish)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "config_snapshot", columnDefinition = "jsonb")

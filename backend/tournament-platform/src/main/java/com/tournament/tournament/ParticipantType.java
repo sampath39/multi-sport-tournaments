@@ -1,2 +1,5 @@
 package com.tournament.tournament;
-public enum ParticipantType { INDIVIDUAL, TEAM }
+
+public enum ParticipantType {
+    INDIVIDUAL, TEAM, BOTH
+}
