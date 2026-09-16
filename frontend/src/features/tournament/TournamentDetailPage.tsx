@@ -589,9 +589,16 @@ export function TournamentDetailPage() {
                     className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-primary/40 transition-all shadow-sm group"
                   >
                     <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
-                      <span className="font-bold text-primary">
-                        Round {m.roundNumber || 1} • {m.courtName || 'Table 1'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-primary">
+                          Round {m.roundNumber || 1} • {m.courtName || 'Court / Board 1'}
+                        </span>
+                        {m.pairingReason && (
+                          <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md font-medium">
+                            {m.pairingReason}
+                          </span>
+                        )}
+                      </div>
                       <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${getStatusColor(m.status)}`}>
                         {m.status || 'SCHEDULED'}
                       </span>
@@ -599,17 +606,35 @@ export function TournamentDetailPage() {
 
                     <div className="space-y-2 bg-slate-50/70 p-3 rounded-xl border border-slate-100">
                       <div className="flex items-center justify-between">
-                        <span className={`text-sm font-bold ${isCompleted && s1 > s2 ? 'text-emerald-600' : 'text-slate-800'}`}>
-                          {p1Name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {m.sideA && m.sideA !== 'NONE' && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              m.sideA === 'WHITE' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-200 text-slate-800'
+                            }`}>
+                              {m.sideA === 'WHITE' ? 'WHITE ♔' : m.sideA}
+                            </span>
+                          )}
+                          <span className={`text-sm font-bold ${isCompleted && s1 > s2 ? 'text-emerald-600' : 'text-slate-800'}`}>
+                            {p1Name}
+                          </span>
+                        </div>
                         <span className="font-mono font-bold text-sm bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-900">
                           {s1}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className={`text-sm font-bold ${isCompleted && s2 > s1 ? 'text-emerald-600' : 'text-slate-800'}`}>
-                          {p2Name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {m.sideB && m.sideB !== 'NONE' && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              m.sideB === 'BLACK' ? 'bg-slate-900 text-white' : m.sideB === 'BYE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-800'
+                            }`}>
+                              {m.sideB === 'BLACK' ? 'BLACK ♚' : m.sideB}
+                            </span>
+                          )}
+                          <span className={`text-sm font-bold ${isCompleted && s2 > s1 ? 'text-emerald-600' : 'text-slate-800'}`}>
+                            {p2Name}
+                          </span>
+                        </div>
                         <span className="font-mono font-bold text-sm bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-900">
                           {s2}
                         </span>
@@ -691,6 +716,7 @@ export function TournamentDetailPage() {
                       <th className="px-5 py-3 text-center">Lost</th>
                       <th className="px-5 py-3 text-center font-black text-primary">Points</th>
                       <th className="px-5 py-3 text-center">Buchholz</th>
+                      <th className="px-5 py-3 text-center">S-B</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
@@ -725,6 +751,9 @@ export function TournamentDetailPage() {
                           </td>
                           <td className="px-5 py-3.5 text-center text-slate-500 font-mono text-xs">
                             {row.buchholz !== undefined ? Number(row.buchholz).toFixed(1) : '0.0'}
+                          </td>
+                          <td className="px-5 py-3.5 text-center text-slate-500 font-mono text-xs">
+                            {row.sonnebornBerger !== undefined ? Number(row.sonnebornBerger).toFixed(2) : '0.00'}
                           </td>
                         </tr>
                       )
