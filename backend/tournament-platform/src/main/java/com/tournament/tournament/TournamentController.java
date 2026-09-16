@@ -86,7 +86,7 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.getFixtures(id));
     }
 
-    @PostMapping("/{id}/rounds/generate")
+    @PostMapping(value = {"/{id}/rounds/generate", "/{id}/generate-fixtures"})
     public ResponseEntity<Map<String, Object>> generateRounds(@PathVariable UUID id) {
         List<Map<String, Object>> fixtures = tournamentService.generateFixtures(id);
         return ResponseEntity.ok(Map.of(

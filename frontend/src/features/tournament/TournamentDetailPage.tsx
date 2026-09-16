@@ -269,6 +269,10 @@ export function TournamentDetailPage() {
   const sportCode = t.sportCode || t.sport?.code || 'CHESS'
   const sportName = t.sportName || t.sport?.name || sportCode
   const isKnockout = t.formatCode === 'SINGLE_ELIMINATION' || t.formatCode === 'KNOCKOUT'
+  const isTeamSport = ['CRICKET', 'FOOTBALL', 'BASKETBALL', 'VOLLEYBALL'].includes((sportCode || '').toUpperCase())
+  const competitorTerm = isTeamSport ? 'Team' : 'Player'
+  const competitorsTerm = isTeamSport ? 'Teams' : 'Players'
+  const sportAllowsDraw = !isKnockout && ['CHESS', 'FOOTBALL', 'CRICKET', 'CARROM'].includes((sportCode || '').toUpperCase())
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -932,16 +936,87 @@ export function TournamentDetailPage() {
                     {isKnockout ? (
                       <tr>
                         <th className="px-5 py-3 text-center w-16">Rank</th>
-                        <th className="px-5 py-3">Competitor</th>
+                        <th className="px-5 py-3">{competitorTerm}</th>
                         <th className="px-5 py-3">Tournament Stage / Status</th>
                         <th className="px-5 py-3 text-center">Matches Won</th>
                         <th className="px-5 py-3 text-center">Matches Lost</th>
                         <th className="px-5 py-3 text-center font-black text-primary">Points</th>
                       </tr>
+                    ) : sportCode === 'CRICKET' ? (
+                      <tr>
+                        <th className="px-5 py-3 text-center w-16">Rank</th>
+                        <th className="px-5 py-3">Team</th>
+                        <th className="px-5 py-3 text-center">Played</th>
+                        <th className="px-5 py-3 text-center">Won</th>
+                        <th className="px-5 py-3 text-center">Lost</th>
+                        <th className="px-5 py-3 text-center">Tied</th>
+                        <th className="px-5 py-3 text-center font-mono">NRR</th>
+                        <th className="px-5 py-3 text-center font-black text-primary">Points</th>
+                      </tr>
+                    ) : sportCode === 'FOOTBALL' ? (
+                      <tr>
+                        <th className="px-5 py-3 text-center w-16">Rank</th>
+                        <th className="px-5 py-3">Team</th>
+                        <th className="px-5 py-3 text-center">Played</th>
+                        <th className="px-5 py-3 text-center">Won</th>
+                        <th className="px-5 py-3 text-center">Drawn</th>
+                        <th className="px-5 py-3 text-center">Lost</th>
+                        <th className="px-5 py-3 text-center">GF</th>
+                        <th className="px-5 py-3 text-center">GA</th>
+                        <th className="px-5 py-3 text-center">GD</th>
+                        <th className="px-5 py-3 text-center font-black text-primary">Points</th>
+                      </tr>
+                    ) : sportCode === 'BASKETBALL' ? (
+                      <tr>
+                        <th className="px-5 py-3 text-center w-16">Rank</th>
+                        <th className="px-5 py-3">Team</th>
+                        <th className="px-5 py-3 text-center">Played</th>
+                        <th className="px-5 py-3 text-center">Won</th>
+                        <th className="px-5 py-3 text-center">Lost</th>
+                        <th className="px-5 py-3 text-center">PF</th>
+                        <th className="px-5 py-3 text-center">PA</th>
+                        <th className="px-5 py-3 text-center">Diff</th>
+                        <th className="px-5 py-3 text-center font-black text-primary">Points</th>
+                      </tr>
+                    ) : sportCode === 'VOLLEYBALL' ? (
+                      <tr>
+                        <th className="px-5 py-3 text-center w-16">Rank</th>
+                        <th className="px-5 py-3">Team</th>
+                        <th className="px-5 py-3 text-center">Played</th>
+                        <th className="px-5 py-3 text-center">Won</th>
+                        <th className="px-5 py-3 text-center">Lost</th>
+                        <th className="px-5 py-3 text-center">Sets Won</th>
+                        <th className="px-5 py-3 text-center">Sets Lost</th>
+                        <th className="px-5 py-3 text-center">Set Diff</th>
+                        <th className="px-5 py-3 text-center font-black text-primary">Points</th>
+                      </tr>
+                    ) : sportCode === 'TABLE_TENNIS' ? (
+                      <tr>
+                        <th className="px-5 py-3 text-center w-16">Rank</th>
+                        <th className="px-5 py-3">Player</th>
+                        <th className="px-5 py-3 text-center">Played</th>
+                        <th className="px-5 py-3 text-center">Won</th>
+                        <th className="px-5 py-3 text-center">Lost</th>
+                        <th className="px-5 py-3 text-center">Games Won</th>
+                        <th className="px-5 py-3 text-center">Games Lost</th>
+                        <th className="px-5 py-3 text-center">Game Diff</th>
+                        <th className="px-5 py-3 text-center font-black text-primary">Points</th>
+                      </tr>
+                    ) : sportCode === 'CARROM' ? (
+                      <tr>
+                        <th className="px-5 py-3 text-center w-16">Rank</th>
+                        <th className="px-5 py-3">Player</th>
+                        <th className="px-5 py-3 text-center">Played</th>
+                        <th className="px-5 py-3 text-center">Won</th>
+                        <th className="px-5 py-3 text-center">Drawn</th>
+                        <th className="px-5 py-3 text-center">Lost</th>
+                        <th className="px-5 py-3 text-center">NBP</th>
+                        <th className="px-5 py-3 text-center font-black text-primary">Points</th>
+                      </tr>
                     ) : (
                       <tr>
                         <th className="px-5 py-3 text-center w-16">Rank</th>
-                        <th className="px-5 py-3">Competitor</th>
+                        <th className="px-5 py-3">Player</th>
                         <th className="px-5 py-3 text-center">Played</th>
                         <th className="px-5 py-3 text-center">Won</th>
                         <th className="px-5 py-3 text-center">Drawn</th>
@@ -955,8 +1030,8 @@ export function TournamentDetailPage() {
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {standings.map((row: any, idx: number) => {
                       const rank = row.rank || idx + 1
-                      const isChamp = row.isChampion || row.medal === 'Champion'
-                      const isRunnerUp = row.medal === 'Runner-up'
+                      const isChamp = row.isChampion || row.medal === 'Champion' || row.resultStage === 'CHAMPION'
+                      const isRunnerUp = row.medal === 'Runner-up' || row.resultStage === 'Finalist (Runner-Up)'
 
                       if (isKnockout) {
                         return (
@@ -988,6 +1063,10 @@ export function TournamentDetailPage() {
                                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-800 border border-slate-300">
                                   🥈 RUNNER-UP
                                 </span>
+                              ) : row.resultStage ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                  {row.resultStage}
+                                </span>
                               ) : row.eliminatedIn && row.eliminatedIn !== 'Pending' ? (
                                 <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                                   Eliminated in {row.eliminatedIn}
@@ -998,7 +1077,7 @@ export function TournamentDetailPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-5 py-3.5 text-center text-emerald-600 font-bold">{row.won || 0}</td>
+                            <td className="px-5 py-3.5 text-center text-emerald-600 font-bold">{row.wins || row.won || 0}</td>
                             <td className="px-5 py-3.5 text-center text-rose-500 font-medium">{row.lost || 0}</td>
                             <td className="px-5 py-3.5 text-center font-black text-base text-primary">
                               {row.points !== undefined ? Number(row.points).toFixed(1) : '0.0'}
@@ -1029,16 +1108,61 @@ export function TournamentDetailPage() {
                           </td>
                           <td className="px-5 py-3.5 text-center text-slate-600">{row.played || 0}</td>
                           <td className="px-5 py-3.5 text-center text-emerald-600 font-semibold">{row.won || 0}</td>
-                          <td className="px-5 py-3.5 text-center text-slate-500">{row.drawn || 0}</td>
-                          <td className="px-5 py-3.5 text-center text-rose-500">{row.lost || 0}</td>
+                          {sportCode === 'CRICKET' ? (
+                            <>
+                              <td className="px-5 py-3.5 text-center text-rose-500">{row.lost || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-500">{row.drawn || 0}</td>
+                              <td className="px-5 py-3.5 text-center font-mono text-xs">{row.nrr !== undefined ? Number(row.nrr).toFixed(3) : '0.000'}</td>
+                            </>
+                          ) : sportCode === 'FOOTBALL' ? (
+                            <>
+                              <td className="px-5 py-3.5 text-center text-slate-500">{row.drawn || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-rose-500">{row.lost || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-600">{row.goalsFor || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-600">{row.goalsAgainst || 0}</td>
+                              <td className="px-5 py-3.5 text-center font-bold text-slate-800">{row.goalDifference || 0}</td>
+                            </>
+                          ) : sportCode === 'BASKETBALL' ? (
+                            <>
+                              <td className="px-5 py-3.5 text-center text-rose-500">{row.lost || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-600">{row.pointsFor || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-600">{row.pointsAgainst || 0}</td>
+                              <td className="px-5 py-3.5 text-center font-bold text-slate-800">{row.pointDiff || 0}</td>
+                            </>
+                          ) : sportCode === 'VOLLEYBALL' ? (
+                            <>
+                              <td className="px-5 py-3.5 text-center text-rose-500">{row.lost || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-600">{row.setsWon || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-600">{row.setsLost || 0}</td>
+                              <td className="px-5 py-3.5 text-center font-bold text-slate-800">{row.setDiff || 0}</td>
+                            </>
+                          ) : sportCode === 'TABLE_TENNIS' ? (
+                            <>
+                              <td className="px-5 py-3.5 text-center text-rose-500">{row.lost || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-600">{row.gamesWon || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-600">{row.gamesLost || 0}</td>
+                              <td className="px-5 py-3.5 text-center font-bold text-slate-800">{row.gameDiff || 0}</td>
+                            </>
+                          ) : sportCode === 'CARROM' ? (
+                            <>
+                              <td className="px-5 py-3.5 text-center text-slate-500">{row.drawn || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-rose-500">{row.lost || 0}</td>
+                              <td className="px-5 py-3.5 text-center font-bold text-slate-800">{row.netBoardPoints || 0}</td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-5 py-3.5 text-center text-slate-500">{row.drawn || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-rose-500">{row.lost || 0}</td>
+                              <td className="px-5 py-3.5 text-center text-slate-500 font-mono text-xs">
+                                {row.buchholz !== undefined ? Number(row.buchholz).toFixed(1) : '0.0'}
+                              </td>
+                              <td className="px-5 py-3.5 text-center text-slate-500 font-mono text-xs">
+                                {row.sonnebornBerger !== undefined ? Number(row.sonnebornBerger).toFixed(2) : '0.00'}
+                              </td>
+                            </>
+                          )}
                           <td className="px-5 py-3.5 text-center font-black text-base text-primary">
                             {row.points !== undefined ? Number(row.points).toFixed(1) : '0.0'}
-                          </td>
-                          <td className="px-5 py-3.5 text-center text-slate-500 font-mono text-xs">
-                            {row.buchholz !== undefined ? Number(row.buchholz).toFixed(1) : '0.0'}
-                          </td>
-                          <td className="px-5 py-3.5 text-center text-slate-500 font-mono text-xs">
-                            {row.sonnebornBerger !== undefined ? Number(row.sonnebornBerger).toFixed(2) : '0.00'}
                           </td>
                         </tr>
                       )
@@ -1074,23 +1198,38 @@ export function TournamentDetailPage() {
             </div>
           ) : (
             <div className="flex items-start gap-8 overflow-x-auto pb-4">
-              <div className="space-y-4 min-w-[240px]">
-                <div className="text-xs font-bold uppercase text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg text-center">
-                  Round 1 Matches
-                </div>
-                {matches.slice(0, 4).map((m: any, idx: number) => (
-                  <div key={m.id || idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 shadow-sm space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
-                      <span>{m.participantA?.displayName || m.player1Name || 'Player 1'}</span>
-                      <span className="font-mono">{m.participantA?.score ?? 0}</span>
+              {roundNumbers.map((r) => {
+                const rMatches = roundsMap[r] || []
+                const slots = Math.pow(2, maxRound - r + 1)
+                const roundTitle = r === maxRound ? 'Final' : r === maxRound - 1 ? 'Semifinals' : r === maxRound - 2 ? 'Quarterfinals' : `Round of ${slots}`
+                return (
+                  <div key={r} className="space-y-4 min-w-[260px]">
+                    <div className="text-xs font-bold uppercase text-slate-700 bg-slate-100 px-3 py-2 rounded-xl text-center border border-slate-200">
+                      Round {r} ({roundTitle})
                     </div>
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
-                      <span>{m.participantB?.displayName || m.player2Name || 'Player 2'}</span>
-                      <span className="font-mono">{m.participantB?.score ?? 0}</span>
-                    </div>
+                    {rMatches.map((m: any, idx: number) => {
+                      const isComplete = m.status === 'COMPLETED'
+                      const wName = m.winner
+                      return (
+                        <div key={m.id || idx} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-xs space-y-2">
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold border-b border-slate-200/40 pb-1">
+                            <span>{m.courtName || `Match ${idx + 1}`}</span>
+                            {isComplete && <span className="text-emerald-600 font-bold">Finished</span>}
+                          </div>
+                          <div className={`flex items-center justify-between text-xs font-semibold ${wName === m.participantA?.displayName ? 'text-primary font-bold' : 'text-slate-700'}`}>
+                            <span className="truncate pr-2">{m.participantA?.displayName || 'TBD'}</span>
+                            <span className="font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200">{m.participantA?.score ?? 0}</span>
+                          </div>
+                          <div className={`flex items-center justify-between text-xs font-semibold ${wName === m.participantB?.displayName ? 'text-primary font-bold' : 'text-slate-700'}`}>
+                            <span className="truncate pr-2">{m.participantB?.displayName || 'TBD'}</span>
+                            <span className="font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200">{m.participantB?.score ?? 0}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -1120,15 +1259,22 @@ export function TournamentDetailPage() {
               </div>
 
               <form onSubmit={handleScoreSubmit} className="space-y-4">
+                {isKnockout && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                    <span className="font-bold">Knockout Match: </span>
+                    Draws are not permitted. A definitive winner must be selected to advance in the bracket.
+                  </div>
+                )}
+
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                  {/* Player A */}
+                  {/* Side A */}
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-slate-800 truncate max-w-[200px]">
-                      {scoringMatch.participantA?.displayName || scoringMatch.player1Name || 'Player 1'}
+                      {scoringMatch.participantA?.displayName || scoringMatch.player1Name || 'Competitor 1'}
                     </span>
                     <input
                       type="number"
-                      step="0.5"
+                      step={sportCode === 'CHESS' ? '0.5' : '1'}
                       min="0"
                       value={scoreA}
                       onChange={(e) => setScoreA(e.target.value)}
@@ -1136,14 +1282,14 @@ export function TournamentDetailPage() {
                     />
                   </div>
 
-                  {/* Player B */}
+                  {/* Side B */}
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-slate-800 truncate max-w-[200px]">
-                      {scoringMatch.participantB?.displayName || scoringMatch.player2Name || 'Player 2'}
+                      {scoringMatch.participantB?.displayName || scoringMatch.player2Name || 'Competitor 2'}
                     </span>
                     <input
                       type="number"
-                      step="0.5"
+                      step={sportCode === 'CHESS' ? '0.5' : '1'}
                       min="0"
                       value={scoreB}
                       onChange={(e) => setScoreB(e.target.value)}
@@ -1156,13 +1302,15 @@ export function TournamentDetailPage() {
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                     Select Winner
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={`grid ${sportAllowsDraw ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                     <button
                       type="button"
                       onClick={() => {
                         setMatchWinner('participantA')
-                        setScoreA(1)
-                        setScoreB(0)
+                        if (Number(scoreA) === 0 && Number(scoreB) === 0) {
+                          setScoreA(1)
+                          setScoreB(0)
+                        }
                       }}
                       className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-all truncate ${
                         matchWinner === 'participantA'
@@ -1170,29 +1318,38 @@ export function TournamentDetailPage() {
                           : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      {scoringMatch.participantA?.displayName?.split(' ')[0] || 'Player 1'} Won
+                      {scoringMatch.participantA?.displayName?.split(' ')[0] || 'Competitor 1'} Won
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMatchWinner('DRAW')
-                        setScoreA(0.5)
-                        setScoreB(0.5)
-                      }}
-                      className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-all ${
-                        matchWinner === 'DRAW'
-                          ? 'border-primary bg-primary text-white'
-                          : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      Draw (½ - ½)
-                    </button>
+                    {sportAllowsDraw && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMatchWinner('DRAW')
+                          if (sportCode === 'CHESS') {
+                            setScoreA(0.5)
+                            setScoreB(0.5)
+                          } else {
+                            setScoreA(1)
+                            setScoreB(1)
+                          }
+                        }}
+                        className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-all ${
+                          matchWinner === 'DRAW'
+                            ? 'border-primary bg-primary text-white'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        Draw
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
                         setMatchWinner('participantB')
-                        setScoreA(0)
-                        setScoreB(1)
+                        if (Number(scoreA) === 0 && Number(scoreB) === 0) {
+                          setScoreA(0)
+                          setScoreB(1)
+                        }
                       }}
                       className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-all truncate ${
                         matchWinner === 'participantB'
@@ -1200,7 +1357,7 @@ export function TournamentDetailPage() {
                           : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      {scoringMatch.participantB?.displayName?.split(' ')[0] || 'Player 2'} Won
+                      {scoringMatch.participantB?.displayName?.split(' ')[0] || 'Competitor 2'} Won
                     </button>
                   </div>
                 </div>

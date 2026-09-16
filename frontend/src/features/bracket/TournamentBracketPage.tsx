@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -18,31 +18,63 @@ export function TournamentBracketPage() {
     enabled: !!id,
   })
 
-  // Sample structured bracket nodes
-  const rounds = [
-    {
-      name: 'Quarter-Finals',
-      matches: [
-        { id: 'qf1', t1: 'Arsenal Academy', s1: 3, t2: 'Blue Stars FC', s2: 1, status: 'COMPLETED', winner: 'Arsenal Academy' },
-        { id: 'qf2', t1: 'Red Dragons', s1: 2, t2: 'Thunderbolts', s2: 0, status: 'COMPLETED', winner: 'Red Dragons' },
-        { id: 'qf3', t1: 'Phoenix Strikers', s1: 1, t2: 'Golden Hawks', s2: 2, status: 'COMPLETED', winner: 'Golden Hawks' },
-        { id: 'qf4', t1: 'Spartans United', s1: 4, t2: 'Vanguard FC', s2: 2, status: 'COMPLETED', winner: 'Spartans United' },
-      ]
-    },
-    {
-      name: 'Semi-Finals',
-      matches: [
-        { id: 'sf1', t1: 'Arsenal Academy', s1: 2, t2: 'Red Dragons', s2: 1, status: 'COMPLETED', winner: 'Arsenal Academy' },
-        { id: 'sf2', t1: 'Golden Hawks', s1: 0, t2: 'Spartans United', s2: 3, status: 'COMPLETED', winner: 'Spartans United' },
-      ]
-    },
-    {
-      name: 'Championship Final',
-      matches: [
-        { id: 'fn1', t1: 'Arsenal Academy', s1: 1, t2: 'Spartans United', s2: 2, status: 'LIVE', winner: null },
-      ]
+  const { data: bracketData } = useQuery({
+    queryKey: ['tournament-bracket', id],
+    queryFn: () => tournamentsApi.getBracket(id!),
+    enabled: !!id,
+  })
+
+  const { data: matches = [] } = useQuery({
+    queryKey: ['tournament-matches', id],
+    queryFn: () => tournamentsApi.getMatches(id!),
+    enabled: !!id,
+  })
+
+  // Group real matches into round columns
+  const rounds = useMemo(() => {
+    if (bracketData?.rounds && bracketData.rounds.length > 0) {
+      return bracketData.rounds.map((r: any) => ({
+        name: r.roundName || `Round ${r.roundNumber}`,
+        matches: (r.matches || []).map((m: any) => ({
+          id: m.id,
+          t1: m.participantA?.displayName || m.participantA?.name || 'TBD',
+          s1: m.participantA?.score ?? 0,
+          t2: m.participantB?.displayName || m.participantB?.name || 'TBD',
+          s2: m.participantB?.score ?? 0,
+          status: m.status,
+          winner: m.winner,
+        }))
+      }))
     }
-  ]
+
+    if (matches.length > 0) {
+      const byRound: Record<number, any[]> = {}
+      for (const m of matches) {
+        const r = m.roundNumber || 1
+        if (!byRound[r]) byRound[r] = []
+        byRound[r].push(m)
+      }
+      const rNums = Object.keys(byRound).map(Number).sort((a, b) => a - b)
+      const maxR = rNums.length > 0 ? Math.max(...rNums) : 1
+      return rNums.map(r => {
+        const name = r === maxR ? 'Championship Final' : r === maxR - 1 ? 'Semi-Finals' : r === maxR - 2 ? 'Quarter-Finals' : `Round ${r}`
+        return {
+          name,
+          matches: byRound[r].map((m: any) => ({
+            id: m.id,
+            t1: m.participantA?.displayName || m.participantA?.name || 'TBD',
+            s1: m.participantA?.score ?? 0,
+            t2: m.participantB?.displayName || m.participantB?.name || 'TBD',
+            s2: m.participantB?.score ?? 0,
+            status: m.status,
+            winner: m.winner,
+          }))
+        }
+      })
+    }
+
+    return []
+  }, [bracketData, matches])
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -83,8 +115,8 @@ export function TournamentBracketPage() {
       {/* Bracket Tree Container */}
       <div className="bg-card/40 backdrop-blur-xl border border-border/50 rounded-3xl p-6 sm:p-8 overflow-x-auto shadow-2xl">
         <div className="flex items-center justify-between min-w-[850px] gap-8">
-          {rounds.map((round, rIndex) => (
-            <div key={round.name} className="flex-1 flex flex-col justify-around min-h-[500px]">
+          {rounds.map((round: any, rIndex: number) => (
+            <div key={round.name || rIndex} className="flex-1 flex flex-col justify-around min-h-[500px]">
               <div className="text-center mb-6">
                 <span className="px-3.5 py-1.5 rounded-xl bg-secondary/80 border border-border/50 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   {round.name}
@@ -92,7 +124,7 @@ export function TournamentBracketPage() {
               </div>
 
               <div className="space-y-8 flex flex-col justify-around flex-grow">
-                {round.matches.map((m) => {
+                {round.matches.map((m: any) => {
                   const isLive = m.status === 'LIVE'
                   return (
                     <div

@@ -5,6 +5,7 @@ public enum TournamentFormat {
     DOUBLE_ROUND_ROBIN,
     SWISS,
     SINGLE_ELIMINATION,
+    KNOCKOUT,
     DOUBLE_ELIMINATION,
     GROUP_STAGE,
     GROUP_STAGE_KNOCKOUT,

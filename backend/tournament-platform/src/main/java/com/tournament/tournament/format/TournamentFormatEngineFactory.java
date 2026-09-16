@@ -10,7 +10,8 @@ import java.util.Map;
 
 /**
  * Factory and registry for tournament format engines.
- * Dispatches Swiss, Single Elimination, and Round Robin requests to their dedicated engines.
+ * Dispatches Swiss, Knockout (Single Elimination), and Round Robin requests
+ * to their dedicated multi-sport engines.
  */
 @Slf4j
 @Component
@@ -22,9 +23,19 @@ public class TournamentFormatEngineFactory {
     public TournamentFormatEngineFactory(List<TournamentFormatEngine> engineList) {
         TournamentFormatEngine fallback = null;
         for (TournamentFormatEngine engine : engineList) {
-            engines.put(engine.getFormat(), engine);
-            if (engine.getFormat() == TournamentFormat.SWISS) {
+            if (engine instanceof SwissFormatEngine) {
+                engines.put(TournamentFormat.SWISS, engine);
                 fallback = engine;
+            } else if (engine instanceof KnockoutFormatEngine) {
+                engines.put(TournamentFormat.KNOCKOUT, engine);
+                engines.put(TournamentFormat.SINGLE_ELIMINATION, engine);
+                engines.put(TournamentFormat.DOUBLE_ELIMINATION, engine);
+                engines.put(TournamentFormat.GROUP_STAGE_KNOCKOUT, engine);
+            } else if (engine instanceof RoundRobinFormatEngine) {
+                engines.put(TournamentFormat.ROUND_ROBIN, engine);
+                engines.put(TournamentFormat.DOUBLE_ROUND_ROBIN, engine);
+            } else {
+                engines.putIfAbsent(engine.getFormat(), engine);
             }
         }
         this.defaultEngine = (fallback != null) ? fallback : engineList.get(0);
@@ -41,12 +52,13 @@ public class TournamentFormatEngineFactory {
             return engine;
         }
 
-        // Handle format aliases
+        if (format == TournamentFormat.SINGLE_ELIMINATION || format == TournamentFormat.KNOCKOUT
+            || format == TournamentFormat.DOUBLE_ELIMINATION || format == TournamentFormat.GROUP_STAGE_KNOCKOUT) {
+            return engines.getOrDefault(TournamentFormat.KNOCKOUT,
+                   engines.getOrDefault(TournamentFormat.SINGLE_ELIMINATION, defaultEngine));
+        }
         if (format == TournamentFormat.DOUBLE_ROUND_ROBIN) {
             return engines.getOrDefault(TournamentFormat.ROUND_ROBIN, defaultEngine);
-        }
-        if (format == TournamentFormat.DOUBLE_ELIMINATION || format == TournamentFormat.GROUP_STAGE_KNOCKOUT) {
-            return engines.getOrDefault(TournamentFormat.SINGLE_ELIMINATION, defaultEngine);
         }
 
         return defaultEngine;

@@ -30,6 +30,7 @@ public class TournamentService {
     private final PlayerRepository playerRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final com.tournament.tournament.format.TournamentFormatEngineFactory formatEngineFactory;
+    private final com.tournament.rules.SportRulesRegistry sportRulesRegistry;
 
     // In-memory store for active tournament rounds and matches
     private final Map<UUID, List<Map<String, Object>>> tournamentFixtures = new ConcurrentHashMap<>();
@@ -331,9 +332,40 @@ public class TournamentService {
     }
 
     public void updateMatchResult(String matchId, Number scoreA, Number scoreB, String status, String winner) {
-        for (List<Map<String, Object>> matches : tournamentFixtures.values()) {
+        for (Map.Entry<UUID, List<Map<String, Object>>> entry : tournamentFixtures.entrySet()) {
+            UUID tournamentId = entry.getKey();
+            List<Map<String, Object>> matches = entry.getValue();
             for (Map<String, Object> m : matches) {
                 if (matchId.equals(m.get("id"))) {
+                    Tournament tournament = tournamentRepository.findById(tournamentId).orElse(null);
+                    if (tournament != null) {
+                        String sportCode = tournament.getSport() != null ? tournament.getSport().getCode() : "CHESS";
+                        var rules = sportRulesRegistry.getEngine(sportCode);
+
+                        // Auto-determine winner if not provided and scores are present
+                        if ((winner == null || winner.trim().isEmpty()) && scoreA != null && scoreB != null) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> pA = (Map<String, Object>) m.get("participantA");
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> pB = (Map<String, Object>) m.get("participantB");
+                            String nameA = pA != null ? (String) pA.get("name") : "A";
+                            String nameB = pB != null ? (String) pB.get("name") : "B";
+
+                            if (scoreA.doubleValue() > scoreB.doubleValue()) {
+                                winner = nameA;
+                            } else if (scoreB.doubleValue() > scoreA.doubleValue()) {
+                                winner = nameB;
+                            } else if (rules.isDrawAllowed(tournament.getFormatCode())) {
+                                winner = "DRAW";
+                            }
+                        }
+
+                        // Validate score & winner against sport rules & tournament format
+                        if ("COMPLETED".equalsIgnoreCase(status) || scoreA != null || scoreB != null) {
+                            rules.validateScore(scoreA, scoreB, winner, tournament.getFormatCode());
+                        }
+                    }
+
                     if (scoreA != null) {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> pA = new LinkedHashMap<>((Map<String, Object>) m.get("participantA"));
@@ -346,7 +378,11 @@ public class TournamentService {
                         pB.put("score", scoreB);
                         m.put("participantB", pB);
                     }
-                    if (status != null) m.put("status", status);
+                    if (status != null) {
+                        m.put("status", status);
+                    } else if (scoreA != null && scoreB != null) {
+                        m.put("status", "COMPLETED");
+                    }
                     if (winner != null) m.put("winner", winner);
                     m.put("updatedAt", OffsetDateTime.now().toString());
                     return;

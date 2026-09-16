@@ -25,7 +25,7 @@ public class MatchController {
         return ResponseEntity.ok(match);
     }
 
-    @PostMapping("/{id}/score")
+    @RequestMapping(value = "/{id}/score", method = {RequestMethod.POST, RequestMethod.PUT})
     public ResponseEntity<Map<String, Object>> updateScore(
         @PathVariable String id,
         @RequestBody Map<String, Object> scoreUpdate
@@ -43,6 +43,9 @@ public class MatchController {
         if (scoreUpdate.containsKey("scoreB")) {
             scoreB = (Number) scoreUpdate.get("scoreB");
             match.put("scoreB", scoreB);
+        }
+        if (status == null && scoreA != null && scoreB != null) {
+            status = "COMPLETED";
         }
         if (status != null) match.put("status", status);
         if (winner != null) match.put("winner", winner);
