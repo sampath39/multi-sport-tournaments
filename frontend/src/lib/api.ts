@@ -2,14 +2,15 @@ import axios from 'axios'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const API_URL = rawApiUrl.replace(/\/+$/, '')
 
 export const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: 90000,
 })
 
 // Request interceptor — attach JWT
@@ -71,9 +72,15 @@ api.interceptors.response.use(
       }
     }
 
+    // Handle timeout error
+    if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+      toast.error('Server is waking up (Render free tier). Please retry in 10-20 seconds!')
+      return Promise.reject(error)
+    }
+
     // Show error toast for non-auth errors
     if (error.response?.status !== 401) {
-      const message = error.response?.data?.message || 'An error occurred'
+      const message = error.response?.data?.message || error.message || 'An error occurred'
       toast.error(message)
     }
 
