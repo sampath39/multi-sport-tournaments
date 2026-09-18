@@ -21,7 +21,7 @@ export function LoginPage() {
   const { setAuth } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   })
 
@@ -32,8 +32,9 @@ export function LoginPage() {
       toast.success(`Welcome back, ${data.user.displayName || data.user.fullName}!`)
       navigate('/dashboard')
     },
-    onError: () => {
-      toast.error('Invalid email or password')
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || err.message || 'Invalid email or password'
+      toast.error(msg)
     },
   })
 
@@ -124,7 +125,38 @@ export function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-white/10 text-center text-xs text-slate-400">
+          {/* Quick 1-Click Demo Login Credentials */}
+          <div className="mt-6 pt-5 border-t border-white/10 space-y-2.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block text-center">
+              ⚡ Quick 1-Click Credentials
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setValue('email', 'admin@tournament.io')
+                  setValue('password', 'Password@123')
+                  toast.success('Admin credentials filled!')
+                }}
+                className="px-3 py-2 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-200 text-xs font-bold transition-all text-center cursor-pointer"
+              >
+                👑 Super Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setValue('email', 'organizer@tournament.io')
+                  setValue('password', 'Password@123')
+                  toast.success('Organizer credentials filled!')
+                }}
+                className="px-3 py-2 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 text-violet-200 text-xs font-bold transition-all text-center cursor-pointer"
+              >
+                📋 Organizer
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-white/10 text-center text-xs text-slate-400">
             Don't have an account?{' '}
             <Link to="/register" className="text-indigo-400 hover:text-indigo-300 font-bold ml-1 hover:underline">
               Create an account free
