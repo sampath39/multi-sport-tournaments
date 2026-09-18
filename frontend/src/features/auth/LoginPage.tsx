@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Trophy, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Trophy, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Mail, Lock } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
@@ -38,83 +38,96 @@ export function LoginPage() {
   })
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-hero-gradient px-4">
-      {/* Background orbs */}
+    <div className="relative min-h-screen flex items-center justify-center px-4 bg-slate-950 text-slate-100 overflow-hidden select-none selection:bg-indigo-500 selection:text-white">
+      {/* Ambient background glows */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-violet-600/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-1/3 right-1/4 w-64 h-64 bg-fuchsia-600/15 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-indigo-600/15 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-violet-600/15 rounded-full blur-[120px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] opacity-40" />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md"
+        transition={{ duration: 0.45 }}
+        className="relative z-10 w-full max-w-md"
       >
-        {/* Logo */}
+        {/* Logo Header */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-glow-md">
-              <Trophy className="w-5 h-5 text-white" />
+          <Link to="/" className="inline-flex items-center gap-3 group">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 border border-white/20 group-hover:scale-105 transition-all">
+              <Trophy className="w-6 h-6 text-white" />
             </div>
-            <span className="font-display font-bold text-2xl gradient-text">TournamentPro</span>
+            <span className="font-display font-black text-2xl text-white tracking-tight">
+              Tournament<span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">Pro</span>
+            </span>
           </Link>
-          <h1 className="text-2xl font-display font-bold mt-6 mb-1">Welcome back</h1>
-          <p className="text-muted-foreground text-sm">Sign in to manage your tournaments</p>
+          <h1 className="text-2xl font-display font-black text-white mt-6 mb-1">Sign In to Platform</h1>
+          <p className="text-slate-400 text-xs">Access your tournaments, pairings, and scoring dashboards</p>
         </div>
 
-        <div className="glass-card p-8">
+        <div className="backdrop-blur-2xl bg-slate-900/75 border border-white/15 rounded-3xl p-8 shadow-2xl">
           <form onSubmit={handleSubmit((data) => loginMutation.mutate(data))} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-1.5" htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                {...register('email')}
-                className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all text-sm placeholder:text-muted-foreground"
-              />
-              {errors.email && <p className="text-xs text-red-400 mt-1">{errors.email.message}</p>}
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5" htmlFor="email">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="admin@tournament.io"
+                  {...register('email')}
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-950/80 border border-white/15 focus:border-indigo-500 outline-none transition-all text-sm text-white placeholder-slate-500 shadow-inner font-medium"
+                />
+              </div>
+              {errors.email && <p className="text-xs text-rose-400 mt-1.5 font-semibold">{errors.email.message}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1.5" htmlFor="password">Password</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5" htmlFor="password">
+                Password
+              </label>
               <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="••••••••"
                   {...register('password')}
-                  className="w-full px-4 py-2.5 pr-10 rounded-lg bg-white/5 border border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition-all text-sm placeholder:text-muted-foreground"
+                  className="w-full pl-10 pr-11 py-3 rounded-2xl bg-slate-950/80 border border-white/15 focus:border-indigo-500 outline-none transition-all text-sm text-white placeholder-slate-500 shadow-inner font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.password && <p className="text-xs text-red-400 mt-1">{errors.password.message}</p>}
+              {errors.password && <p className="text-xs text-rose-400 mt-1.5 font-semibold">{errors.password.message}</p>}
             </div>
 
             <button
               type="submit"
               disabled={loginMutation.isPending}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold transition-all hover:shadow-glow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-bold text-sm shadow-xl shadow-indigo-600/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed border border-indigo-400/40 cursor-pointer"
             >
               {loginMutation.isPending ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</>
-              ) : 'Sign in'}
+              ) : (
+                <><span>Sign In</span><ArrowRight className="w-4 h-4" /></>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="mt-6 pt-6 border-t border-white/10 text-center text-xs text-slate-400">
             Don't have an account?{' '}
-            <Link to="/register" className="text-violet-400 hover:text-violet-300 font-medium">
-              Get started free
+            <Link to="/register" className="text-indigo-400 hover:text-indigo-300 font-bold ml-1 hover:underline">
+              Create an account free
             </Link>
           </div>
         </div>

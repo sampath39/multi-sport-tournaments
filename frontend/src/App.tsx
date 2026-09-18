@@ -8,6 +8,7 @@ import { AdminDashboard } from '@/features/dashboard/AdminDashboard'
 import { TournamentsPage } from '@/features/tournament/TournamentsPage'
 import { TournamentDetailPage } from '@/features/tournament/TournamentDetailPage'
 import { CreateTournamentPage } from '@/features/tournament/CreateTournamentPage'
+import { PlayerPairingsPage } from '@/features/tournament/PlayerPairingsPage'
 import { TournamentStandingsPage } from '@/features/standings/TournamentStandingsPage'
 import { TournamentBracketPage } from '@/features/bracket/TournamentBracketPage'
 import { MatchDetailPage } from '@/features/match/MatchDetailPage'
@@ -35,12 +36,16 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
+      {/* Public standalone player routes — accessible via shared link with zero friction */}
+      <Route path="/pairings/:id" element={<PlayerPairingsPage />} />
+      <Route path="/t/:id" element={<PlayerPairingsPage />} />
+
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      {/* Tournament TV mode — full screen, no layout */}
+      {/* Tournament TV mode — full screen broadcast */}
       <Route path="/tv/:id" element={<TvModePage />} />
 
       {/* Main layout routes */}

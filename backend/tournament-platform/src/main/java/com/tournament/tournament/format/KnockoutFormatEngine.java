@@ -170,14 +170,12 @@ public class KnockoutFormatEngine implements TournamentFormatEngine {
                 Map<String, Object> feeder1 = prevRoundMatches.get(2 * i);
                 Map<String, Object> feeder2 = prevRoundMatches.get(2 * i + 1);
 
-                String winner1Name = (String) feeder1.get("winner");
-                String winner2Name = (String) feeder2.get("winner");
-
-                TournamentParticipantDto p1 = findParticipantByName(seeded, winner1Name);
-                TournamentParticipantDto p2 = findParticipantByName(seeded, winner2Name);
+                TournamentParticipantDto p1 = resolveWinnerParticipant(seeded, feeder1);
+                TournamentParticipantDto p2 = resolveWinnerParticipant(seeded, feeder2);
 
                 if (p1 == null || p2 == null) {
-                    throw new IllegalStateException("Knockout progression error: Winner not found for feeder matches into match " + (i + 1));
+                    throw new IllegalStateException("Knockout progression error: Winner not determined for feeder matches into match " + (i + 1) + 
+                        ". Please ensure all matches in Round " + prevRound + " have a verified winner selected.");
                 }
 
                 Map<String, Object> match = new LinkedHashMap<>();
@@ -407,15 +405,70 @@ public class KnockoutFormatEngine implements TournamentFormatEngine {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", id);
         map.put("name", name);
+        map.put("displayName", name);
         map.put("score", score);
         return map;
     }
 
-    private TournamentParticipantDto findParticipantByName(List<TournamentParticipantDto> participants, String name) {
-        if (name == null) return null;
-        for (TournamentParticipantDto p : participants) {
-            if (name.equalsIgnoreCase(p.getDisplayName())) {
-                return p;
+    private TournamentParticipantDto resolveWinnerParticipant(List<TournamentParticipantDto> participants, Map<String, Object> match) {
+        if (match == null) return null;
+        String winner = (String) match.get("winner");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> pA = (Map<String, Object>) match.get("participantA");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> pB = (Map<String, Object>) match.get("participantB");
+        String idA = pA != null ? (String) pA.get("id") : null;
+        String idB = pB != null ? (String) pB.get("id") : null;
+        String nameA = pA != null ? (String) pA.getOrDefault("displayName", pA.get("name")) : null;
+        String nameB = pB != null ? (String) pB.getOrDefault("displayName", pB.get("name")) : null;
+
+        if (winner != null && !winner.isBlank() && !"DRAW".equalsIgnoreCase(winner)) {
+            for (TournamentParticipantDto p : participants) {
+                if (winner.equalsIgnoreCase(p.getDisplayName()) ||
+                    winner.equalsIgnoreCase(p.getFullName()) ||
+                    winner.equalsIgnoreCase(p.getId().toString())) {
+                    return p;
+                }
+            }
+            if ("participantA".equalsIgnoreCase(winner) || winner.equalsIgnoreCase(nameA) || (idA != null && winner.equalsIgnoreCase(idA))) {
+                return findParticipantByIdOrName(participants, idA, nameA);
+            }
+            if ("participantB".equalsIgnoreCase(winner) || winner.equalsIgnoreCase(nameB) || (idB != null && winner.equalsIgnoreCase(idB))) {
+                return findParticipantByIdOrName(participants, idB, nameB);
+            }
+        }
+
+        // Compare scores if winner string wasn't explicit
+        Number sA = pA != null ? (Number) pA.get("score") : null;
+        Number sB = pB != null ? (Number) pB.get("score") : null;
+        if (sA != null && sB != null) {
+            if (sA.doubleValue() > sB.doubleValue()) {
+                return findParticipantByIdOrName(participants, idA, nameA);
+            } else if (sB.doubleValue() > sA.doubleValue()) {
+                return findParticipantByIdOrName(participants, idB, nameB);
+            }
+        }
+
+        // Check for BYE match
+        if ("BYE".equalsIgnoreCase((String) match.get("resultType")) || "BYE".equalsIgnoreCase(nameB) || "BYE".equalsIgnoreCase(idB)) {
+            return findParticipantByIdOrName(participants, idA, nameA);
+        }
+        if ("BYE".equalsIgnoreCase(nameA) || "BYE".equalsIgnoreCase(idA)) {
+            return findParticipantByIdOrName(participants, idB, nameB);
+        }
+
+        return null;
+    }
+
+    private TournamentParticipantDto findParticipantByIdOrName(List<TournamentParticipantDto> participants, String id, String name) {
+        if (id != null) {
+            for (TournamentParticipantDto p : participants) {
+                if (id.equalsIgnoreCase(p.getId().toString())) return p;
+            }
+        }
+        if (name != null) {
+            for (TournamentParticipantDto p : participants) {
+                if (name.equalsIgnoreCase(p.getDisplayName()) || name.equalsIgnoreCase(p.getFullName())) return p;
             }
         }
         return null;

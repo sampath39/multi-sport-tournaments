@@ -226,6 +226,7 @@ public class SwissFormatEngine implements TournamentFormatEngine {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", id);
         map.put("name", name);
+        map.put("displayName", name);
         map.put("score", score);
         return map;
     }

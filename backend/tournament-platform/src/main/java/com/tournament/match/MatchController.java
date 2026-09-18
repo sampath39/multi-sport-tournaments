@@ -21,6 +21,12 @@ public class MatchController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getMatch(@PathVariable String id) {
+        Map<String, Object> fixture = tournamentService.findMatchById(id);
+        if (fixture != null) {
+            Map<String, Object> match = liveMatches.computeIfAbsent(id, k -> new LinkedHashMap<>(fixture));
+            match.putAll(fixture);
+            return ResponseEntity.ok(match);
+        }
         Map<String, Object> match = liveMatches.computeIfAbsent(id, this::createInitialMatch);
         return ResponseEntity.ok(match);
     }
@@ -62,12 +68,15 @@ public class MatchController {
         @RequestBody(required = false) Map<String, Object> body
     ) {
         Map<String, Object> match = liveMatches.computeIfAbsent(id, this::createInitialMatch);
-        match.put("status", "COMPLETED");
+        String status = "COMPLETED";
         String winner = null;
         Number scoreA = (Number) match.get("scoreA");
         Number scoreB = (Number) match.get("scoreB");
 
         if (body != null) {
+            if (body.containsKey("status") && body.get("status") != null) {
+                status = (String) body.get("status");
+            }
             if (body.containsKey("winner")) {
                 winner = (String) body.get("winner");
                 match.put("winner", winner);
@@ -82,8 +91,13 @@ public class MatchController {
             }
         }
 
-        match.put("completedAt", OffsetDateTime.now().toString());
-        tournamentService.updateMatchResult(id, scoreA, scoreB, "COMPLETED", winner);
+        match.put("status", status);
+        if ("COMPLETED".equalsIgnoreCase(status)) {
+            match.put("completedAt", OffsetDateTime.now().toString());
+        } else {
+            match.remove("completedAt");
+        }
+        tournamentService.updateMatchResult(id, scoreA, scoreB, status, winner);
 
         return ResponseEntity.ok(match);
     }

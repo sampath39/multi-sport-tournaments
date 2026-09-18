@@ -162,6 +162,7 @@ public class ChessSwissFormatEngine implements TournamentFormatEngine {
     private Map<String, Object> participantMap(String id, String displayName, Number score) {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("id", id);
+        p.put("name", displayName);
         p.put("displayName", displayName);
         p.put("score", score);
         return p;

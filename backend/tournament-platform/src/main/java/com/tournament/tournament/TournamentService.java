@@ -34,6 +34,8 @@ public class TournamentService {
 
     // In-memory store for active tournament rounds and matches
     private final Map<UUID, List<Map<String, Object>>> tournamentFixtures = new ConcurrentHashMap<>();
+    // In-memory store for participant squad members (for team tournaments)
+    private final Map<UUID, List<Map<String, Object>>> participantSquads = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
     public Page<TournamentDto> listTournaments(
@@ -188,6 +190,13 @@ public class TournamentService {
         List<TournamentParticipantDto> result = new ArrayList<>();
         for (TournamentParticipant tp : list) {
             Player p = tp.getPlayerId() != null ? playerRepository.findById(tp.getPlayerId()).orElse(null) : null;
+            List<Map<String, Object>> squad = participantSquads.getOrDefault(tp.getId(), new ArrayList<>());
+            String captain = squad.stream()
+                .filter(m -> Boolean.TRUE.equals(m.get("isCaptain")))
+                .map(m -> (String) m.get("name"))
+                .findFirst()
+                .orElse(null);
+
             result.add(TournamentParticipantDto.builder()
                 .id(tp.getId())
                 .tournamentId(tournamentId)
@@ -200,6 +209,9 @@ public class TournamentService {
                 .category(tp.getCategory())
                 .checkInStatus(tp.getCheckInStatus())
                 .status(tp.getStatus())
+                .captainName(captain)
+                .squadSize(squad.size())
+                .squadMembers(new ArrayList<>(squad))
                 .registeredAt(tp.getRegisteredAt())
                 .build());
         }
@@ -256,6 +268,28 @@ public class TournamentService {
 
         TournamentParticipant saved = participantRepository.save(tp);
 
+        // If captain or initial squad member is specified
+        if (req.containsKey("captainName") && req.get("captainName") != null) {
+            String capName = req.get("captainName").toString().trim();
+            if (!capName.isEmpty()) {
+                Map<String, Object> capMember = new HashMap<>();
+                capMember.put("id", UUID.randomUUID().toString());
+                capMember.put("name", capName);
+                capMember.put("role", "Captain");
+                capMember.put("jerseyNumber", "1");
+                capMember.put("isCaptain", true);
+                capMember.put("joinedAt", OffsetDateTime.now().toString());
+                participantSquads.computeIfAbsent(saved.getId(), k -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(capMember);
+            }
+        }
+
+        List<Map<String, Object>> squad = participantSquads.getOrDefault(saved.getId(), new ArrayList<>());
+        String captain = squad.stream()
+            .filter(m -> Boolean.TRUE.equals(m.get("isCaptain")))
+            .map(m -> (String) m.get("name"))
+            .findFirst()
+            .orElse(req.containsKey("captainName") ? String.valueOf(req.get("captainName")) : null);
+
         return TournamentParticipantDto.builder()
             .id(saved.getId())
             .tournamentId(tournamentId)
@@ -268,8 +302,46 @@ public class TournamentService {
             .category(saved.getCategory())
             .checkInStatus(saved.getCheckInStatus())
             .status(saved.getStatus())
+            .captainName(captain)
+            .squadSize(squad.size())
+            .squadMembers(new ArrayList<>(squad))
             .registeredAt(saved.getRegisteredAt())
             .build();
+    }
+
+    public Map<String, Object> addTeamMember(UUID tournamentId, UUID participantId, Map<String, Object> req) {
+        List<Map<String, Object>> squad = participantSquads.computeIfAbsent(participantId, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
+        String memberId = UUID.randomUUID().toString();
+        String name = (String) req.getOrDefault("name", req.getOrDefault("fullName", "Squad Player"));
+        String role = (String) req.getOrDefault("role", "Player");
+        String jerseyNumber = req.containsKey("jerseyNumber") ? String.valueOf(req.get("jerseyNumber")) : "";
+        boolean isCaptain = Boolean.TRUE.equals(req.get("isCaptain")) || "CAPTAIN".equalsIgnoreCase(role);
+
+        // If this member is captain, demote other captains in squad
+        if (isCaptain) {
+            for (Map<String, Object> m : squad) {
+                m.put("isCaptain", false);
+            }
+        }
+
+        Map<String, Object> member = new HashMap<>();
+        member.put("id", memberId);
+        member.put("name", name);
+        member.put("role", role);
+        member.put("jerseyNumber", jerseyNumber);
+        member.put("isCaptain", isCaptain);
+        member.put("joinedAt", OffsetDateTime.now().toString());
+
+        squad.add(member);
+        return member;
+    }
+
+    public boolean removeTeamMember(UUID tournamentId, UUID participantId, String memberId) {
+        List<Map<String, Object>> squad = participantSquads.get(participantId);
+        if (squad != null) {
+            return squad.removeIf(m -> memberId.equals(String.valueOf(m.get("id"))));
+        }
+        return false;
     }
 
     @Transactional
@@ -337,20 +409,39 @@ public class TournamentService {
             List<Map<String, Object>> matches = entry.getValue();
             for (Map<String, Object> m : matches) {
                 if (matchId.equals(m.get("id"))) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> pA = (Map<String, Object>) m.get("participantA");
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> pB = (Map<String, Object>) m.get("participantB");
+                    String nameA = pA != null ? (String) pA.getOrDefault("displayName", pA.get("name")) : "A";
+                    String nameB = pB != null ? (String) pB.getOrDefault("displayName", pB.get("name")) : "B";
+                    String idA = pA != null ? (String) pA.get("id") : null;
+                    String idB = pB != null ? (String) pB.get("id") : null;
+
+                    // Resolve relative winner identifiers
+                    if ("participantA".equalsIgnoreCase(winner) || (idA != null && idA.equalsIgnoreCase(winner))) {
+                        winner = nameA;
+                    } else if ("participantB".equalsIgnoreCase(winner) || (idB != null && idB.equalsIgnoreCase(winner))) {
+                        winner = nameB;
+                    }
+
+                    // Handle Match Replay
+                    if ("REPLAY".equalsIgnoreCase(status) || "SCHEDULED".equalsIgnoreCase(status)) {
+                        if (scoreA == null && scoreB == null) {
+                            scoreA = 0;
+                            scoreB = 0;
+                        }
+                        winner = null;
+                        status = "SCHEDULED";
+                    }
+
                     Tournament tournament = tournamentRepository.findById(tournamentId).orElse(null);
                     if (tournament != null) {
                         String sportCode = tournament.getSport() != null ? tournament.getSport().getCode() : "CHESS";
                         var rules = sportRulesRegistry.getEngine(sportCode);
 
                         // Auto-determine winner if not provided and scores are present
-                        if ((winner == null || winner.trim().isEmpty()) && scoreA != null && scoreB != null) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> pA = (Map<String, Object>) m.get("participantA");
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> pB = (Map<String, Object>) m.get("participantB");
-                            String nameA = pA != null ? (String) pA.get("name") : "A";
-                            String nameB = pB != null ? (String) pB.get("name") : "B";
-
+                        if ((winner == null || winner.trim().isEmpty()) && scoreA != null && scoreB != null && !"SCHEDULED".equalsIgnoreCase(status)) {
                             if (scoreA.doubleValue() > scoreB.doubleValue()) {
                                 winner = nameA;
                             } else if (scoreB.doubleValue() > scoreA.doubleValue()) {
@@ -361,34 +452,57 @@ public class TournamentService {
                         }
 
                         // Validate score & winner against sport rules & tournament format
-                        if ("COMPLETED".equalsIgnoreCase(status) || scoreA != null || scoreB != null) {
-                            rules.validateScore(scoreA, scoreB, winner, tournament.getFormatCode());
+                        if ("COMPLETED".equalsIgnoreCase(status)) {
+                            boolean isKnockout = tournament.getFormatCode() == TournamentFormat.KNOCKOUT || 
+                                                 tournament.getFormatCode() == TournamentFormat.SINGLE_ELIMINATION || 
+                                                 tournament.getFormatCode() == TournamentFormat.DOUBLE_ELIMINATION;
+                            if (isKnockout && scoreA != null && scoreB != null && scoreA.doubleValue() == scoreB.doubleValue() && winner != null && !winner.isBlank() && !"DRAW".equalsIgnoreCase(winner)) {
+                                // Valid tiebreak advancement (Armageddon/Penalties/Admin choice)
+                            } else {
+                                rules.validateScore(scoreA, scoreB, winner, tournament.getFormatCode());
+                            }
                         }
                     }
 
-                    if (scoreA != null) {
+                    if (scoreA != null && pA != null) {
                         @SuppressWarnings("unchecked")
-                        Map<String, Object> pA = new LinkedHashMap<>((Map<String, Object>) m.get("participantA"));
-                        pA.put("score", scoreA);
-                        m.put("participantA", pA);
+                        Map<String, Object> updatedPA = new LinkedHashMap<>(pA);
+                        updatedPA.put("score", scoreA);
+                        updatedPA.put("name", nameA);
+                        updatedPA.put("displayName", nameA);
+                        m.put("participantA", updatedPA);
                     }
-                    if (scoreB != null) {
+                    if (scoreB != null && pB != null) {
                         @SuppressWarnings("unchecked")
-                        Map<String, Object> pB = new LinkedHashMap<>((Map<String, Object>) m.get("participantB"));
-                        pB.put("score", scoreB);
-                        m.put("participantB", pB);
+                        Map<String, Object> updatedPB = new LinkedHashMap<>(pB);
+                        updatedPB.put("score", scoreB);
+                        updatedPB.put("name", nameB);
+                        updatedPB.put("displayName", nameB);
+                        m.put("participantB", updatedPB);
                     }
                     if (status != null) {
                         m.put("status", status);
                     } else if (scoreA != null && scoreB != null) {
                         m.put("status", "COMPLETED");
                     }
-                    if (winner != null) m.put("winner", winner);
+                    m.put("winner", winner);
                     m.put("updatedAt", OffsetDateTime.now().toString());
                     return;
                 }
             }
         }
+    }
+
+    public Map<String, Object> findMatchById(String matchId) {
+        if (matchId == null) return null;
+        for (List<Map<String, Object>> matches : tournamentFixtures.values()) {
+            for (Map<String, Object> m : matches) {
+                if (matchId.equals(m.get("id"))) {
+                    return m;
+                }
+            }
+        }
+        return null;
     }
 
     @Transactional(readOnly = true)

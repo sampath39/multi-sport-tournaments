@@ -111,6 +111,10 @@ export const tournamentsApi = {
   start: (id: string) => api.post(`/tournaments/${id}/publish`).then(r => r.data),
   addParticipant: (id: string, data: unknown) =>
     api.post(`/tournaments/${id}/participants`, data).then(r => r.data),
+  addTeamMember: (tournamentId: string, participantId: string, data: unknown) =>
+    api.post(`/tournaments/${tournamentId}/participants/${participantId}/members`, data).then(r => r.data),
+  removeTeamMember: (tournamentId: string, participantId: string, memberId: string) =>
+    api.delete(`/tournaments/${tournamentId}/participants/${participantId}/members/${memberId}`).then(r => r.data),
   getParticipants: (id: string) =>
     api.get(`/tournaments/${id}/participants`).then(r => r.data),
   generateRound: (id: string) =>

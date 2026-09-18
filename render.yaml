@@ -1,0 +1,25 @@
+services:
+  # Backend Spring Boot Service
+  - type: web
+    name: tournament-backend
+    runtime: docker
+    dockerfilePath: ./backend/tournament-platform/Dockerfile
+    dockerContext: ./backend/tournament-platform
+    plan: free
+    region: singapore # or oregon / frankfurt
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_DATASOURCE_URL
+        sync: false # Set via Render Dashboard (Supabase PostgreSQL URL)
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: FRONTEND_URL
+        sync: false # Set to your Vercel URL e.g. https://your-tournament-app.vercel.app
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

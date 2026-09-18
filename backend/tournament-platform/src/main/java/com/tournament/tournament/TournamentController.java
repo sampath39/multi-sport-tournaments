@@ -76,6 +76,25 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.addParticipant(id, participant));
     }
 
+    @PostMapping("/{id}/participants/{participantId}/members")
+    public ResponseEntity<Map<String, Object>> addTeamMember(
+        @PathVariable UUID id,
+        @PathVariable UUID participantId,
+        @RequestBody Map<String, Object> req
+    ) {
+        return ResponseEntity.ok(tournamentService.addTeamMember(id, participantId, req));
+    }
+
+    @DeleteMapping("/{id}/participants/{participantId}/members/{memberId}")
+    public ResponseEntity<Map<String, Object>> removeTeamMember(
+        @PathVariable UUID id,
+        @PathVariable UUID participantId,
+        @PathVariable String memberId
+    ) {
+        boolean removed = tournamentService.removeTeamMember(id, participantId, memberId);
+        return ResponseEntity.ok(Map.of("success", removed, "memberId", memberId));
+    }
+
     @GetMapping("/{id}/fixtures")
     public ResponseEntity<List<Map<String, Object>>> getFixtures(@PathVariable UUID id) {
         return ResponseEntity.ok(tournamentService.getFixtures(id));
