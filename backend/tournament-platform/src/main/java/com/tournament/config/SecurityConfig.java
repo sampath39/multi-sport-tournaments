@@ -65,8 +65,10 @@ public class SecurityConfig {
         "/api/v1/auth/refresh",
         "/api/v1/auth/forgot-password",
         "/api/v1/auth/reset-password",
-        "/api/v1/matches/**",
-        "/api/v1/tournaments/**"
+        "/api/v1/tournaments",
+        "/api/v1/tournaments/**",
+        "/api/v1/matches",
+        "/api/v1/matches/**"
     };
 
     @Bean
